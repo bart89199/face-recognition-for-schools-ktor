@@ -1,9 +1,8 @@
-import ru.batr.PythonConnection
+package com.batr
+
+import com.batr.pythonConnection.PythonConnection
 import java.awt.image.BufferedImage
-import java.io.File
 import javax.imageio.ImageIO
-import javax.imageio.ImageReadParam
-import javax.imageio.stream.FileImageInputStream
 import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -11,9 +10,9 @@ import kotlin.test.assertEquals
 
 val testBytes = byteArrayOf(1, 10, 100, 254.toByte(), 255.toByte())
 val testInts = intArrayOf(1, 10, 100, 12345678, 123456789)
-val testImage: BufferedImage by lazy {
-    ImageIO.read(File("test-img.png"))
-}
+var classloader = Thread.currentThread().getContextClassLoader()
+val testImage: BufferedImage = ImageIO.read(classloader.getResourceAsStream("test-img.png"))
+
 
 class TestPythonConnection {
 
