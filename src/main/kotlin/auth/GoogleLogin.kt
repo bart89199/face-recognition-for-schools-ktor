@@ -53,7 +53,6 @@ fun Application.configureGoogleOauthRooting() {
             get("login/google") {
                 // Redirects to 'authorizeUrl' automatically
             }
-
             get("callback") {
                 val currentPrincipal: OAuthAccessTokenResponse.OAuth2? = call.principal()
                 currentPrincipal?.let { principal ->

@@ -1,5 +1,7 @@
 package com.batr
 
+import com.batr.auth.setPermissions
+import com.batr.auth.user.UserPermissions
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -20,6 +22,7 @@ fun Application.configureRouting() {
 
     routing {
         authenticate("session-auth") {
+
             get {
                 call.respondFile(getResource("react-app/index.html")!!)
             }
@@ -27,6 +30,10 @@ fun Application.configureRouting() {
                 this.applicationRoute = "/assets"
                 this.useResources = true
                 react("react-app")
+            }
+
+            setPermissions(UserPermissions(admin = true)) {
+                staticResources("/admin", "admin")
             }
         }
 

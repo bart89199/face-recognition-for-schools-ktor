@@ -1,7 +1,7 @@
 package com.batr
 
 import com.batr.auth.PasswordHasher
-import com.batr.auth.getSessionOrRedirect
+import com.batr.auth.getSession
 import com.batr.auth.session.getUser
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
@@ -22,7 +22,7 @@ fun Application.configureTest() {
     routing {
         authenticate("session-auth", optional = false) {
             get("/test") {
-                val session = call.getSessionOrRedirect()
+                val session = call.getSession()
                 if (session != null) {
                     val user = session.getUser()
                     call.respondText("Hello, ${user.name}! $")

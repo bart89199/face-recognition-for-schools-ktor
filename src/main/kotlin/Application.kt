@@ -1,10 +1,11 @@
 package com.batr
 
 import com.batr.auth.configureAuth
+import com.batr.auth.user.UserService
 import com.batr.database.Database.configureDatabase
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 
 const val HOME_PATH = "/home"
@@ -19,7 +20,7 @@ val applicationHttpClient = HttpClient(CIO) {
     }
 }
 
-fun Application.module() {
+suspend fun Application.module() {
     configureDatabase()
     configureAuth()
 
@@ -27,6 +28,14 @@ fun Application.module() {
     configureSockets()
     configureRouting()
     configureAccess()
+
+//    UserService.getAll().forEach { user ->
+//        val permissions = user.permissions
+//        if (permissions.manageUsers != null) {
+//            val newPermissions = permissions.copy(admin = permissions.manageUsers, manageUsers = null)
+//            UserService.update(user.id, newPermissions = newPermissions)
+//        }
+//    }
 
     configureStreaming()
     configureDoor()

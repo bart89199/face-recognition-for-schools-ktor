@@ -20,20 +20,20 @@ data class UserPermissions(
     val settings: Boolean = false,
     val backup: Boolean = false,
     @SerialName("access_control") val accessControl: Boolean = false,
-    @SerialName("manage_users") val manageUsers: Boolean = false,
+    val admin: Boolean = false,
 )
 
 fun UserPermissions.check(need: UserPermissions) =
-    (need.stream impl stream) or
-            (need.doorControl impl doorControl) or
-            (need.status impl status) or
-            (need.logs impl logs) or
-            (need.records impl records) or
-            (need.manual impl manual) or
-            (need.settings impl settings) or
-            (need.backup impl backup) or
-            (need.accessControl impl accessControl) or
-            (need.manageUsers impl manageUsers)
+    (need.stream impl stream) and
+            (need.doorControl impl doorControl) and
+            (need.status impl status) and
+            (need.logs impl logs) and
+            (need.records impl records) and
+            (need.manual impl manual) and
+            (need.settings impl settings) and
+            (need.backup impl backup) and
+            (need.accessControl impl accessControl) and
+            (need.admin impl admin)
 
 infix fun Boolean.impl(other: Boolean) = !this or other
 
