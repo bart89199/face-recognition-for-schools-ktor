@@ -7,7 +7,7 @@ import io.ktor.client.engine.cio.CIO
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.*
 
-const val HOME_PATH = "/"
+const val HOME_PATH = "/home"
 const val LOGIN_PATH = "/login"
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)

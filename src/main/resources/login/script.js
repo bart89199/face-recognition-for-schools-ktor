@@ -1,9 +1,30 @@
 (function() {
+
+    function getQueryParam(name) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+    }
+
+    function sanitizeRedirect(raw) {
+        if (!raw) return null;
+        try {
+            const url = decodeURIComponent(raw).trim();
+            if (url.startsWith('/') && !url.startsWith('//')) {
+                return url;
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    }
+
+    const rawRedirectParam = getQueryParam('redirectUrl');
+    const safeRedirectParam = sanitizeRedirect(rawRedirectParam);
+
     const form = document.getElementById('loginForm');
     const errorBox = document.getElementById('error');
     const submitBtn = document.getElementById('submitBtn');
     const googleBtn = document.getElementById('googleBtn');
-    const googleBtn2 = document.getElementById('googleBtn2');
 
     function showError(msg) {
         errorBox.textContent = msg;
@@ -32,12 +53,21 @@
         }
     }
 
-    function redirectToGoogle() {
-        window.location = '/login/google';
+    function buildGoogleUrl() {
+        let base = '/login/google';
+        if (safeRedirectParam) {
+            const g = new URL(base, window.location.origin);
+            g.searchParams.set('redirectUrl', safeRedirectParam);
+            return g.pathname + g.search; // относительный
+        }
+        return base;
     }
 
-    googleBtn.addEventListener('click', redirectToGoogle);
-    googleBtn2.addEventListener('click', redirectToGoogle);
+    function goGoogle() {
+        window.location = buildGoogleUrl();
+    }
+
+    googleBtn.addEventListener('click', goGoogle);
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -63,7 +93,7 @@
             });
 
             if (res.ok) {
-                window.location = '/';
+                window.location = safeRedirectParam || '/';
                 return;
             }
 

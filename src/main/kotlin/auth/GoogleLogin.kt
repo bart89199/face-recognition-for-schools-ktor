@@ -50,41 +50,40 @@ fun AuthenticationConfig.configureGoogleOauthPlugin(application: Application) {
 fun Application.configureGoogleOauthRooting() {
     routing {
         authenticate("oauth-google") {
-            route("login/google") {
-                get {
-                    // Redirects to 'authorizeUrl' automatically
-                }
+            get("login/google") {
+                // Redirects to 'authorizeUrl' automatically
+            }
 
-                get("callback") {
-                    val currentPrincipal: OAuthAccessTokenResponse.OAuth2? = call.principal()
-                    currentPrincipal?.let { principal ->
-                        principal.state?.let { state ->
-                            call.sessions.get<CookieUserSession>()?.delete()
+            get("callback") {
+                val currentPrincipal: OAuthAccessTokenResponse.OAuth2? = call.principal()
+                currentPrincipal?.let { principal ->
+                    principal.state?.let { state ->
+                        call.sessions.get<CookieUserSession>()?.delete()
 
-                            val userInfo = fetchUserInfo(principal.accessToken)
-                            val user = UserService.getByEmail(userInfo.email)
-                            if (user == null) {
-                                call.response.status(HttpStatusCode.Forbidden)
-                                return@get
-                            }
+                        val userInfo = fetchUserInfo(principal.accessToken)
+                        val user = UserService.getByEmail(userInfo.email)
+                        if (user == null) {
+                            call.response.status(HttpStatusCode.Forbidden)
+                            return@get
+                        }
 
-                            val googleAccess = GoogleAccess(
-                                principal.accessToken,
-                                principal.expiresIn + System.currentTimeMillis(),
-                                principal.refreshToken
-                            )
-                            val newSession = SessionService.create(user.id, googleAccess = googleAccess)
-                            call.sessions.set(CookieUserSession(newSession.token))
+                        val googleAccess = GoogleAccess(
+                            principal.accessToken,
+                            principal.expiresIn + System.currentTimeMillis(),
+                            principal.refreshToken
+                        )
+                        val newSession = SessionService.create(user.id, googleAccess = googleAccess)
+                        call.sessions.set(CookieUserSession(newSession.token))
 
-                            redirects[state]?.let { redirect ->
-                                call.respondRedirect(redirect)
-                                return@get
-                            }
+                        redirects[state]?.let { redirect ->
+                            call.respondRedirect(redirect)
+                            return@get
                         }
                     }
-                    call.respondRedirect(HOME_PATH)
                 }
+                call.respondRedirect(HOME_PATH)
             }
+
         }
     }
 }
