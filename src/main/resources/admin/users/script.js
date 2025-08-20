@@ -5,9 +5,9 @@
     const tableBody = document.querySelector('#usersTable tbody');
     const countInfo = document.getElementById('countInfo');
 
-    // ДОБАВЛЕНО manage_users
+    // Права (включая manage_users если добавлено на бэке)
     const permDescriptions = {
-        manage_users: 'Управление пользователями (доступ к этой панели)',
+        manage_users: 'Управление пользователями',
         stream: 'Просмотр видео',
         door_control: 'Управление дверью',
         status: 'Статус системы',
@@ -30,10 +30,10 @@
             cb.type = 'checkbox';
             cb.id = 'perm_'+k;
             cb.dataset.key = k;
-            const text = document.createElement('span');
-            text.textContent = permDescriptions[k];
+            const span = document.createElement('span');
+            span.textContent = permDescriptions[k];
             label.appendChild(cb);
-            label.appendChild(text);
+            label.appendChild(span);
             grid.appendChild(label);
         });
     }
@@ -41,9 +41,7 @@
 
     function getPermsFromForm() {
         const perms = {};
-        permKeys.forEach(k => {
-            perms[k] = document.getElementById('perm_'+k).checked;
-        });
+        permKeys.forEach(k => perms[k] = document.getElementById('perm_'+k).checked);
         return perms;
     }
 
@@ -60,8 +58,8 @@
         errBox.textContent='';
         okBox.textContent='';
     }
-    function showError(m) { clearMessages(); errBox.textContent=m; errBox.classList.add('show'); }
-    function showOk(m) { clearMessages(); okBox.textContent=m; okBox.classList.add('show'); }
+    function showError(m) { clearMessages(); errBox.textContent = m; errBox.classList.add('show'); }
+    function showOk(m) { clearMessages(); okBox.textContent = m; okBox.classList.add('show'); }
 
     async function fetchJSON(url, opts={}) {
         const res = await fetch(url, {
@@ -89,44 +87,45 @@
 
     function showCount(n) { countInfo.textContent = 'Всего: '+n; }
 
-    async function search() {
+    async function searchByName() {
         const name = document.getElementById('filterName').value.trim();
+        if (!name) { showError('Введите часть имени'); return; }
+        try {
+            const users = await fetchJSON(apiRoot+'/findByName/'+encodeURIComponent(name));
+            renderTable(users||[]);
+            showCount(users?.length||0);
+            if (!users || !users.length) showError('Ничего не найдено по имени');
+            else clearMessages();
+        } catch {
+            renderTable([]);
+            showCount(0);
+            showError('Не найдено (имя)');
+        }
+    }
+
+    async function searchByEmail() {
         const email = document.getElementById('filterEmail').value.trim();
-
-        if (email) {
-            // сначала точный
-            try {
-                const user = await fetchJSON(apiRoot+'/byEmail/'+encodeURIComponent(email));
-                renderTable([user]);
-                showCount(1);
-                return;
-            } catch {}
-            // потом LIKE (если реализован эндпоинт /findByEmail)
-            try {
-                const users = await fetchJSON(apiRoot+'/findByEmail/'+encodeURIComponent(email));
-                renderTable(users||[]);
-                showCount(users?.length||0);
-                return;
-            } catch {
-                renderTable([]);
-                showCount(0);
-                return;
-            }
-        }
-
-        if (name) {
-            try {
-                const users = await fetchJSON(apiRoot+'/findByName/'+encodeURIComponent(name));
-                renderTable(users||[]);
-                showCount(users?.length||0);
-            } catch {
-                renderTable([]);
-                showCount(0);
-            }
+        if (!email) { showError('Введите часть email'); return; }
+        // Сначала пробуем точное
+        try {
+            const user = await fetchJSON(apiRoot+'/byEmail/'+encodeURIComponent(email));
+            renderTable([user]);
+            showCount(1);
+            clearMessages();
             return;
+        } catch {}
+        // LIKE
+        try {
+            const users = await fetchJSON(apiRoot+'/findByEmail/'+encodeURIComponent(email));
+            renderTable(users||[]);
+            showCount(users?.length||0);
+            if (!users || !users.length) showError('Ничего не найдено по email');
+            else clearMessages();
+        } catch {
+            renderTable([]);
+            showCount(0);
+            showError('Не найдено (email)');
         }
-
-        await loadAll();
     }
 
     function escapeHtml(s) {
@@ -136,11 +135,12 @@
     function renderPermBadges(perms) {
         if (!perms) return '';
         return permKeys.filter(k => perms[k])
-            .map(k => `<span class="badge" title="${permDescriptions[k]}">${k.replace(/_/g,'-')}</span>`).join(' ');
+            .map(k => `<span class="badge" title="${permDescriptions[k]}">${k.replace(/_/g,'-')}</span>`)
+            .join(' ');
     }
 
     function renderTable(users) {
-        tableBody.innerHTML='';
+        tableBody.innerHTML = '';
         users.forEach(u => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -151,32 +151,30 @@
         <td>${renderPermBadges(u.permissions)}</td>
         <td class="row-actions">
           <button type="button" class="outline" data-edit="${u.id}">Ред.</button>
-          <button type="button" class="danger outline" data-del="${u.id}">X</button>
+          <button type="button" class="danger outline" data-del="${u.id}">Удалить</button>
         </td>
       `;
             tableBody.appendChild(tr);
         });
     }
 
-    tableBody.addEventListener('click', async (e) => {
+    tableBody.addEventListener('click', async e => {
         const btn = e.target.closest('button');
         if (!btn) return;
         if (btn.dataset.edit) {
-            const id = btn.dataset.edit;
             try {
-                const user = await fetchJSON(apiRoot+'/'+id);
+                const user = await fetchJSON(apiRoot+'/'+btn.dataset.edit);
                 fillFormForEdit(user);
             } catch (err) {
                 showError('Не удалось получить пользователя: '+err.message);
             }
         } else if (btn.dataset.del) {
-            const id = btn.dataset.del;
-            if (!confirm('Удалить пользователя '+id+'?')) return;
+            if (!confirm('Удалить пользователя '+btn.dataset.del+'?')) return;
             try {
-                await fetch(apiRoot+'/'+id, { method:'DELETE', credentials:'include' });
+                await fetch(apiRoot+'/'+btn.dataset.del, { method:'DELETE', credentials:'include' });
                 showOk('Удалено');
                 await loadAll();
-                if (document.getElementById('editId').value === id) resetForm();
+                if (document.getElementById('editId').value === btn.dataset.del) resetForm();
             } catch (err) {
                 showError('Ошибка удаления: '+err.message);
             }
@@ -189,31 +187,31 @@
         document.getElementById('email').value = user.email;
         document.getElementById('password').value = '';
         fillPerms(user.permissions || {});
-        document.getElementById('saveBtn').textContent='Обновить';
+        document.getElementById('saveBtn').textContent = 'Обновить';
+        clearMessages();
     }
 
     function resetForm() {
-        document.getElementById('editId').value='';
-        document.getElementById('name').value='';
-        document.getElementById('email').value='';
-        document.getElementById('password').value='';
+        document.getElementById('editId').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('email').value = '';
+        document.getElementById('password').value = '';
         fillPerms({});
-        document.getElementById('saveBtn').textContent='Создать';
+        document.getElementById('saveBtn').textContent = 'Создать';
     }
 
-    document.getElementById('resetBtn').addEventListener('click', () => {
-        resetForm();
-        clearMessages();
-    });
+    document.getElementById('resetBtn').addEventListener('click', () => { resetForm(); clearMessages(); });
 
-    document.getElementById('searchBtn').addEventListener('click', search);
-    document.getElementById('refreshBtn').addEventListener('click', () => {
+    document.getElementById('searchNameBtn').addEventListener('click', searchByName);
+    document.getElementById('searchEmailBtn').addEventListener('click', searchByEmail);
+    document.getElementById('showAllBtn').addEventListener('click', () => {
         document.getElementById('filterName').value='';
         document.getElementById('filterEmail').value='';
+        clearMessages();
         loadAll();
     });
 
-    document.getElementById('userForm').addEventListener('submit', async (e) => {
+    document.getElementById('userForm').addEventListener('submit', async e => {
         e.preventDefault();
         clearMessages();
         const id = document.getElementById('editId').value;
@@ -226,7 +224,7 @@
         }
         const perms = getPermsFromForm();
         const btn = document.getElementById('saveBtn');
-        const oldTxt = btn.textContent;
+        const originalText = btn.textContent;
         btn.disabled = true;
         btn.innerHTML = '<div class="spinner"></div>';
         try {
@@ -234,8 +232,7 @@
                 const payload = { name, email, permissions: perms };
                 if (password) payload.password = password;
                 const res = await fetch(apiRoot+'/'+id, {
-                    method:'PUT',
-                    credentials:'include',
+                    method:'PUT', credentials:'include',
                     headers:{'Content-Type':'application/json'},
                     body: JSON.stringify(payload)
                 });
@@ -248,14 +245,9 @@
                     showError('Ошибка обновления ('+res.status+')');
                 }
             } else {
-                const payload = {
-                    name, email,
-                    password: password || generateTempPassword(),
-                    permissions: perms
-                };
+                const payload = { name, email, password: password || generateTempPassword(), permissions: perms };
                 const res = await fetch(apiRoot, {
-                    method:'POST',
-                    credentials:'include',
+                    method:'POST', credentials:'include',
                     headers:{'Content-Type':'application/json'},
                     body: JSON.stringify(payload)
                 });
@@ -265,14 +257,14 @@
                     resetForm();
                     await loadAll();
                 } else {
-                    showError('Не удалось создать (возможно email уже существует)');
+                    showError('Не удалось создать (email уже существует?)');
                 }
             }
         } catch (err) {
             showError('Ошибка отправки: '+err.message);
         } finally {
             btn.disabled = false;
-            btn.textContent = oldTxt;
+            btn.textContent = originalText;
         }
     });
 
@@ -280,5 +272,6 @@
         return Math.random().toString(36).slice(-10)+'!';
     }
 
+    // Инициализация
     loadAll();
 })();

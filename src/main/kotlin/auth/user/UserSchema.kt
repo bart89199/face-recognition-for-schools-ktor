@@ -53,6 +53,14 @@ data class User(
     val permissions: UserPermissions,
 )
 
+@Serializable
+data class UserNoPass(
+    val id: Int,
+    val name: String,
+    val email: String,
+    val permissions: UserPermissions,
+)
+
 val DEFAULT_PERMISSIONS = UserPermissions()
 
 @Serializable
@@ -64,4 +72,5 @@ data class RawUser(
 )
 
 fun User.toRaw() = RawUser(name, email, password, permissions)
+fun User.toNoPass() = UserNoPass(id, name, email, permissions)
 suspend fun User.newSession(googleAccess: GoogleAccess? = null) = SessionService.create(id, googleAccess = googleAccess)

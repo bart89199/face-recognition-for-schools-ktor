@@ -22,7 +22,7 @@ fun Application.configureUserManagement() {
         route("/auth/manage") {
 
             get {
-                val users = UserService.getAll()
+                val users = UserService.getAll().map { it.toNoPass() }
                 call.respond(users)
             }
 
@@ -83,7 +83,7 @@ fun Application.configureUserManagement() {
                     call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
                     return@get
                 }
-                val user = UserService.getById(id)
+                val user = UserService.getById(id)?.toNoPass()
                 if (user == null) {
                     call.respond(HttpStatusCode.Companion.NotFound)
                     return@get
@@ -97,7 +97,7 @@ fun Application.configureUserManagement() {
                     call.respond(HttpStatusCode.Companion.BadRequest, "name is required")
                     return@get
                 }
-                val user = UserService.findLikeName(name)
+                val user = UserService.findLikeName(name).map { it.toNoPass() }
                 if (user.isEmpty()) {
                     call.respond(HttpStatusCode.Companion.NotFound)
                     return@get
@@ -111,7 +111,7 @@ fun Application.configureUserManagement() {
                     call.respond(HttpStatusCode.Companion.BadRequest, "email is required")
                     return@get
                 }
-                val user = UserService.findLikeEmail(email)
+                val user = UserService.findLikeEmail(email).map { it.toNoPass() }
                 if (user.isEmpty()) {
                     call.respond(HttpStatusCode.Companion.NotFound)
                     return@get
@@ -125,7 +125,7 @@ fun Application.configureUserManagement() {
                     call.respond(HttpStatusCode.Companion.BadRequest, "name is required")
                     return@get
                 }
-                val user = UserService.getByName(name)
+                val user = UserService.getByName(name).map { it.toNoPass() }
                 if (user.isEmpty()) {
                     call.respond(HttpStatusCode.Companion.NotFound)
                     return@get
@@ -139,7 +139,7 @@ fun Application.configureUserManagement() {
                     call.respond(HttpStatusCode.Companion.BadRequest, "email is required")
                     return@get
                 }
-                val user = UserService.getByEmail(email)
+                val user = UserService.getByEmail(email)?.toNoPass()
                 if (user == null) {
                     call.respond(HttpStatusCode.Companion.NotFound)
                     return@get
