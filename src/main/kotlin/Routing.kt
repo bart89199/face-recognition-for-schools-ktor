@@ -17,9 +17,14 @@ fun Application.configureRouting() {
             call.respondText(text = "500: $cause", status = HttpStatusCode.InternalServerError)
         }
     }
+
     routing {
         authenticate("session-auth") {
-            staticResources("/", "react-app")
+            singlePageApplication {
+                this.defaultPage = "index.html"
+                this.useResources = true
+                react("react-app")
+            }
         }
     }
 }
