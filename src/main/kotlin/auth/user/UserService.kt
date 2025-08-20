@@ -29,6 +29,10 @@ object UserService {
         }
     }
 
+    suspend fun getAll() = suspendTransaction {
+        UserTable.selectAll().toModel()
+    }
+
     suspend fun getById(id: Int) = suspendTransaction {
         UserTable.selectAll().where { UserTable.id eq id }.toModel().firstOrNull()
     }
@@ -39,6 +43,10 @@ object UserService {
 
     suspend fun getByName(name: String) = suspendTransaction {
         UserTable.selectAll().where { UserTable.name eq name }.toModel()
+    }
+
+    suspend fun findLikeEmail(email: String) = suspendTransaction {
+        UserTable.selectAll().where { UserTable.email like "%$email%" }.toModel()
     }
 
     suspend fun findLikeName(name: String) = suspendTransaction {

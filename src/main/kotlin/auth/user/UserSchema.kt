@@ -2,6 +2,7 @@ package com.batr.auth.user
 
 import com.batr.auth.session.GoogleAccess
 import com.batr.auth.session.SessionService
+import com.batr.auth.user.UserTable.permissions
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -19,7 +20,22 @@ data class UserPermissions(
     val settings: Boolean = false,
     val backup: Boolean = false,
     @SerialName("access_control") val accessControl: Boolean = false,
+    @SerialName("manage_users") val manageUsers: Boolean = false,
 )
+
+fun UserPermissions.check(need: UserPermissions) =
+    (need.stream impl stream) or
+            (need.doorControl impl doorControl) or
+            (need.status impl status) or
+            (need.logs impl logs) or
+            (need.records impl records) or
+            (need.manual impl manual) or
+            (need.settings impl settings) or
+            (need.backup impl backup) or
+            (need.accessControl impl accessControl) or
+            (need.manageUsers impl manageUsers)
+
+infix fun Boolean.impl(other: Boolean) = !this or other
 
 object UserTable : IntIdTable() {
     val name = varchar("name", 100)

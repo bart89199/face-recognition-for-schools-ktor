@@ -1,5 +1,6 @@
 package com.batr.auth.user
 
+
 import com.batr.receiveOrRespond
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -19,6 +20,12 @@ data class UserUpdate(
 fun Application.configureUserManagement() {
     routing {
         route("/auth/manage") {
+
+            get {
+                val users = UserService.getAll()
+                call.respond(users)
+            }
+
             post {
                 val newUser = call.receiveOrRespond<RawUser>() ?: return@post
                 val id = UserService.createUser(newUser)
@@ -32,6 +39,7 @@ fun Application.configureUserManagement() {
                 }
 
             }
+
             put("/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull()
                 if (id == null) {
@@ -54,8 +62,8 @@ fun Application.configureUserManagement() {
                         "can't update user, invalid id or email already exists"
                     )
                 }
-
             }
+
             delete("/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull()
                 if (id == null) {
@@ -68,6 +76,7 @@ fun Application.configureUserManagement() {
                     call.respond(HttpStatusCode.Companion.NotFound)
                 }
             }
+
             get("/{id}") {
                 val id = call.parameters["id"]?.toIntOrNull()
                 if (id == null) {
@@ -81,6 +90,7 @@ fun Application.configureUserManagement() {
                 }
                 call.respond(user)
             }
+
             get("/findByName/{name}") {
                 val name = call.parameters["name"]
                 if (name == null) {
@@ -88,6 +98,20 @@ fun Application.configureUserManagement() {
                     return@get
                 }
                 val user = UserService.findLikeName(name)
+                if (user.isEmpty()) {
+                    call.respond(HttpStatusCode.Companion.NotFound)
+                    return@get
+                }
+                call.respond(user)
+            }
+
+            get("/findByEmail/{email}") {
+                val email = call.parameters["email"]
+                if (email == null) {
+                    call.respond(HttpStatusCode.Companion.BadRequest, "email is required")
+                    return@get
+                }
+                val user = UserService.findLikeEmail(email)
                 if (user.isEmpty()) {
                     call.respond(HttpStatusCode.Companion.NotFound)
                     return@get

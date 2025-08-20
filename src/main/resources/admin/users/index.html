@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Управление пользователями</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link rel="preload" href="/admin/users/script.js" as="script">
+    <style>
+        :root { font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif; color-scheme: light dark; }
+        body { margin:0; display:flex; min-height:100vh; }
+        .sidebar { width:240px; background:#1e293b; color:#f1f5f9; padding:20px; box-sizing:border-box; }
+        .sidebar h2 { margin:0 0 16px; font-size:1.1rem; }
+        .content { flex:1; padding:24px 32px 40px; box-sizing:border-box; background:#f5f7fb; overflow:auto; }
+        h1 { margin-top:0; font-size:1.4rem; }
+        table { border-collapse: collapse; width:100%; background:#fff; border-radius:12px; overflow:hidden; }
+        th, td { padding:10px 12px; font-size:.85rem; text-align:left; border-bottom:1px solid #e2e8f0; vertical-align:top; }
+        th { background:#f1f5f9; position:sticky; top:0; z-index:1; }
+        tbody tr:last-child td { border-bottom:none; }
+        .toolbar { display:flex; gap:12px; flex-wrap:wrap; margin:0 0 16px; }
+        input[type=text], input[type=email], input[type=password] {
+            border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; font:inherit; background:#fff; min-width:160px;
+        }
+        input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.35); }
+        button { font:inherit; cursor:pointer; border:none; border-radius:8px; padding:8px 14px; background:#2563eb; color:#fff; font-weight:600; display:inline-flex; align-items:center; gap:6px; }
+        button.secondary { background:#475569; }
+        button.danger { background:#dc2626; }
+        button.outline { background:#fff; color:#1e293b; border:1px solid #cbd5e1; }
+        button.outline:hover { background:#f1f5f9; }
+        button:disabled { opacity:.5; cursor:not-allowed; }
+        .panel { background:#fff; padding:18px 20px 24px; border-radius:16px; box-shadow:0 4px 14px rgba(0,0,0,.05); margin-bottom:28px; }
+        label { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; display:flex; flex-direction:column; gap:4px; color:#475569; }
+        .perm-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:6px 14px; }
+        .perm-item { font-size:.65rem; display:flex; align-items:center; gap:6px; background:#f1f5f9; padding:6px 8px; border-radius:8px; line-height:1.2; }
+        .perm-item input { margin:0; }
+        .muted { color:#64748b; font-size:.7rem; }
+        .badge { background:#2563eb; color:#fff; padding:2px 6px 3px; border-radius:999px; font-size:.65rem; }
+        .row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+        .nowrap { white-space:nowrap; }
+        .password-placeholder { font-family:monospace; letter-spacing:2px; }
+        .error { background:#fee2e2; color:#991b1b; padding:8px 10px; border-radius:8px; font-size:.75rem; margin-bottom:12px; display:none; }
+        .error.show { display:block; }
+        .success { background:#dcfce7; color:#166534; padding:8px 10px; border-radius:8px; font-size:.75rem; margin-bottom:12px; display:none; }
+        .success.show { display:block; }
+        @media (prefers-color-scheme: dark) {
+            body { background:#0f172a; }
+            .content { background:#0f172a; color:#f1f5f9; }
+            table, th, td { background:#1e293b; border-color:#334155; }
+            th { background:#0f172a; }
+            input[type=text], input[type=email], input[type=password] { background:#1e293b; border-color:#334155; color:#f1f5f9; }
+            .panel { background:#1e293b; box-shadow:0 4px 18px rgba(0,0,0,.55); }
+            .perm-item { background:#334155; }
+            button.outline { background:#1e293b; color:#f1f5f9; border-color:#334155; }
+            button.outline:hover { background:#334155; }
+            .error { background:#7f1d1d; color:#fee2e2; }
+            .success { background:#14532d; color:#dcfce7; }
+        }
+        .flex { display:flex; gap:10px; flex-wrap:wrap; }
+        .flex-col { display:flex; flex-direction:column; gap:14px; }
+        .split { display:grid; gap:24px; grid-template-columns:340px 1fr; align-items:start; }
+        @media (max-width: 1100px) { .split { grid-template-columns:1fr; } .sidebar { display:none; } }
+        .spinner { width:14px;height:14px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .filter-group { display:flex; gap:8px; flex-wrap:wrap; }
+        .truncate { max-width:230px; overflow:hidden; text-overflow:ellipsis; }
+    </style>
+</head>
+<body>
+<div class="sidebar">
+    <h2>Админ</h2>
+    <div class="muted">Панель управления пользователями</div>
+    <div style="margin-top:24px;">
+        <button class="outline" onclick="location.href='/'">Домой</button>
+        <button class="outline" onclick="location.href='/logout'">Выйти</button>
+    </div>
+</div>
+<div class="content">
+    <h1>Пользователи</h1>
+
+    <div id="err" class="error" role="alert"></div>
+    <div id="ok" class="success" role="status"></div>
+
+    <div class="split">
+        <div class="panel flex-col">
+            <h3 style="margin:0;font-size:1rem;">Создать / обновить</h3>
+            <form id="userForm" class="flex-col">
+                <input type="hidden" id="editId"/>
+
+                <label>
+                    Имя
+                    <input id="name" type="text" required placeholder="Имя пользователя"/>
+                </label>
+                <label>
+                    Email
+                    <input id="email" type="email" required placeholder="user@example.com"/>
+                </label>
+                <label>
+                    Пароль
+                    <input id="password" type="password" placeholder="(оставьте пустым чтобы не менять)"/>
+                </label>
+
+                <div>
+                    <div class="muted" style="margin-bottom:4px;">Права</div>
+                    <div class="perm-grid" id="permGrid"></div>
+                </div>
+
+                <div class="flex">
+                    <button type="submit" id="saveBtn">Создать</button>
+                    <button type="button" id="resetBtn" class="secondary">Сброс</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="flex-col" style="gap:28px;">
+            <div class="panel">
+                <div class="toolbar">
+                    <div class="filter-group">
+                        <input type="text" id="filterName" placeholder="Поиск по имени"/>
+                        <input type="text" id="filterEmail" placeholder="По email (часть)"/>
+                        <button type="button" id="searchBtn" class="outline">Поиск</button>
+                        <button type="button" id="refreshBtn" class="outline">Обновить</button>
+                    </div>
+                </div>
+                <div style="overflow:auto; max-height:60vh;">
+                    <table id="usersTable">
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Имя</th>
+                            <th>Email</th>
+                            <th>Пароль (hash)</th>
+                            <th>Права</th>
+                            <th></th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="muted" style="margin-top:8px;" id="countInfo"></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="/admin/users/script.js" defer></script>
+</body>
+</html>
