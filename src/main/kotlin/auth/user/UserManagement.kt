@@ -5,6 +5,7 @@ import com.batr.auth.getSession
 import com.batr.auth.session.delete
 import com.batr.auth.session.getAllSessions
 import com.batr.auth.session.getUser
+import com.batr.auth.session.toRaw
 import com.batr.auth.setPermissions
 import com.batr.receiveOrRespond
 import io.ktor.http.*
@@ -160,7 +161,7 @@ fun Application.configureUserManagement() {
                                 call.respond(HttpStatusCode.Companion.NotFound)
                                 return@get
                             }
-                            val sessions = user.getAllSessions()
+                            val sessions = user.getAllSessions().map {it.toRaw()}
                             call.respond(sessions)
                         }
                         delete("sessions") {

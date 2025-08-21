@@ -3,12 +3,10 @@ package com.batr.auth.session
 import com.batr.auth.getSession
 import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
-import com.batr.auth.user.UserService
-import com.batr.auth.user.toNoPass
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
-import io.ktor.server.response.respond
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 
