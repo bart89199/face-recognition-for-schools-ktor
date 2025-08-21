@@ -13,4 +13,5 @@ googleapi:
     google-client-secret: $GOOGLE_CLIENT_SECRET
     google-client-id: $GOOGLE_CLIENT_ID
 auth:
-  token-life-time-ms: 86400
+  token-life-time-ms: 3600000
+  long-token-life-time-ms: 604800000

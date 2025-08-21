@@ -1,10 +1,9 @@
 (function() {
-    // Обновлённые базовые URL после изменения запросов
     const userApiRoot = '/auth/manage/user';
     const sessionApiRoot = '/auth/manage/session';
     const currentUserApi = '/api/user';
 
-    // DOM элементы
+    // DOM
     const errBox = document.getElementById('err');
     const okBox = document.getElementById('ok');
     const usersTableBody = document.querySelector('#usersTable tbody');
@@ -21,7 +20,7 @@
     const selectedUserTag = document.getElementById('selectedUserTag');
     const selectedUserName = document.getElementById('selectedUserName');
 
-    // Форма
+    // Form
     const saveBtn = document.getElementById('saveBtn');
     const resetBtn = document.getElementById('resetBtn');
     const editIdInput = document.getElementById('editId');
@@ -29,7 +28,7 @@
     const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
 
-    // Поиск
+    // Search
     const filterNameInput = document.getElementById('filterName');
     const filterEmailInput = document.getElementById('filterEmail');
     const searchNameBtn = document.getElementById('searchNameBtn');
@@ -39,7 +38,7 @@
     let isCurrentRoot = false;
     let currentSelectedUserId = null;
 
-    // Права
+    // Permissions
     const permDescriptions = {
         stream: 'Просмотр видео',
         door_control: 'Управление дверью',
@@ -86,7 +85,7 @@
         });
     }
 
-    // Сообщения
+    // Messages
     function clearMessages() {
         errBox.classList.remove('show');
         okBox.classList.remove('show');
@@ -106,12 +105,8 @@
         if (res.status === 204) return null;
         if (!res.ok) {
             const txt = await res.text().catch(()=> '');
-            if (res.status === 403) {
-                throw new Error(txt || 'Недостаточно прав');
-            }
-            if (res.status === 404) {
-                throw new Error('HTTP 404');
-            }
+            if (res.status === 403) throw new Error(txt || 'Недостаточно прав');
+            if (res.status === 404) throw new Error('HTTP 404');
             throw new Error(txt || ('HTTP '+res.status));
         }
         try { return await res.json(); } catch { return null; }
@@ -137,7 +132,7 @@
         }
     }
 
-    // Пользователи
+    // Users
     async function loadAllUsers() {
         try {
             const data = await fetchJSON(userApiRoot);
@@ -299,7 +294,7 @@
         loadAllUsers();
     });
 
-    // ---------- СЕССИИ ----------
+    // --------- Sessions ---------
     function markSessionsPanelLoading(loading) {
         sessionsPanel.classList.toggle('sessions-panel-loading', loading);
     }
@@ -360,13 +355,17 @@
         sessionsInfo.textContent = `Активных сессий: ${sessions.length}`;
 
         sessions.forEach(s => {
+            // backend теперь стабилен: s.requestData.login_time, s.requestData.ip, s.requestData.user_agent
+            const loginTs = s.requestData?.login_time;
+            const expiresTs = s.expiresAt;
+            const relative = formatRemaining(expiresTs);
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td class="nowrap">${s.id}</td>
-                <td class="truncate" title="${formatDateTime(s.requestData.login_time)}">${formatShortDateTime(s.requestData.login_time)}</td>
-                <td class="truncate" title="${escapeHtml(s.requestData.ip)}">${escapeHtml(s.requestData.ip)}</td>
-                <td class="truncate-wide" title="${escapeHtml(s.requestData.user_agent||'')}">${escapeHtml((s.requestData.user_agent||'').substring(0,140))}</td>
-                <td class="truncate" title="${formatDateTime(s.expiresAt)}">${formatRelative(s.expiresAt)}</td>
+                <td class="truncate" title="${formatDateTime(loginTs)}">${formatShortDateTime(loginTs)}</td>
+                <td class="truncate" title="${escapeHtml(s.requestData?.ip || '')}">${escapeHtml(s.requestData?.ip || '')}</td>
+                <td class="truncate-wide" title="${escapeHtml(s.requestData?.user_agent||'')}">${escapeHtml((s.requestData?.user_agent||'').substring(0,140))}</td>
+                <td class="truncate" title="Истекает: ${formatDateTime(expiresTs)}">${relative}</td>
                 <td>${s.googleLogin ? '<span class="badge badge-google" title="Google OAuth">G</span>' : ''}</td>
                 <td class="row-actions">
                     <button type="button" class="danger outline small-btn" data-del-session="${s.id}">Удалить</button>
@@ -397,17 +396,21 @@
     });
 
     refreshSessionsBtn.addEventListener('click', () => loadUserSessions());
+
     deleteUserSessionsBtn.addEventListener('click', async () => {
         if (!currentSelectedUserId) return;
         if (!confirm('Удалить ВСЕ сессии пользователя '+currentSelectedUserId+'?')) return;
-        // Нет отдельного эндпоинта: получаем список и удаляем каждую
         try {
             markSessionsPanelLoading(true);
-            const sessions = await fetchJSON(`${userApiRoot}/${currentSelectedUserId}/sessions`) || [];
-            for (const s of sessions) {
-                try {
-                    await fetch(`${sessionApiRoot}/${s.id}`, { method:'DELETE', credentials:'include' });
-                } catch {}
+            const res = await fetch(`${userApiRoot}/${currentSelectedUserId}/sessions`, {
+                method:'DELETE',
+                credentials:'include'
+            });
+            if (!res.ok) {
+                const txt = await res.text().catch(()=> '');
+                if (res.status === 403) showError('Недостаточно прав');
+                else showError(txt || ('Ошибка удаления сессий пользователя ('+res.status+')'));
+                return;
             }
             showOk('Все сессии пользователя удалены');
             await loadUserSessions();
@@ -437,7 +440,7 @@
         }
     });
 
-    // ---------- Форматирование дат ----------
+    // Date / time formatting
     function formatDateTime(ts) {
         if (!ts) return '';
         const d = new Date(ts);
@@ -454,22 +457,39 @@
             hour:'2-digit', minute:'2-digit'
         });
     }
-    function formatRelative(ts) {
+
+    // Новое отображение "осталось"
+    function formatRemaining(ts) {
         if (!ts) return '';
-        const now = Date.now();
-        const diff = ts - now;
+        const diff = ts - Date.now();
+        const past = diff < 0;
         const abs = Math.abs(diff);
-        const sign = diff >= 0 ? 'через ' : '';
-        const suffix = diff < 0 ? ' назад' : '';
-        const mins = Math.round(abs/60000);
-        if (mins < 60) return sign + mins + ' мин' + suffix;
-        const hours = Math.round(mins/60);
-        if (hours < 24) return sign + hours + ' ч' + suffix;
-        const days = Math.round(hours/24);
-        return sign + days + ' д' + suffix;
+
+        const SEC = 1000;
+        const MIN = 60 * SEC;
+        const H = 60 * MIN;
+        const D = 24 * H;
+
+        let text;
+        if (abs < MIN) {
+            text = '<1 мин';
+        } else if (abs < H) {
+            const m = Math.round(abs / MIN);
+            text = m + ' м';
+        } else if (abs < D) {
+            const h = Math.floor(abs / H);
+            const m = Math.round((abs % H) / MIN);
+            text = h + ' ч' + (m ? ' ' + m + ' м' : '');
+        } else {
+            const d = Math.floor(abs / D);
+            const h = Math.round((abs % D) / H);
+            text = d + ' д' + (h ? ' ' + h + ' ч' : '');
+        }
+
+        return past ? ('просрочена ' + text) : ('осталось ' + text);
     }
 
-    // ---------- Сохранение пользователя ----------
+    // Save user
     document.getElementById('userForm').addEventListener('submit', async e => {
         e.preventDefault();
         clearMessages();
@@ -504,7 +524,6 @@
                 if (res.status === 204) {
                     showOk('Обновлено');
                     await loadAllUsers();
-                    // обновим сессии, если выбран тот же пользователь
                     if (currentSelectedUserId == id) await loadUserSessions();
                 } else {
                     const txt = await res.text().catch(()=> '');
@@ -537,7 +556,7 @@
         }
     });
 
-    // Инициализация
+    // Init
     (async function init() {
         await loadCurrentUser();
         await loadAllUsers();

@@ -106,8 +106,8 @@ object UserService {
     }
 }
 
-suspend fun User.newSession(requestData: RequestData, googleAccess: GoogleAccess? = null) = SessionService.create(id, requestData = requestData, googleAccess = googleAccess)
-suspend fun User.newSession(call: ApplicationCall, googleAccess: GoogleAccess? = null) = SessionService.create(id, requestData = call.getRequestData(), googleAccess = googleAccess)
+suspend fun User.newSession(requestData: RequestData, longLogin: Boolean = false, googleAccess: GoogleAccess? = null) = SessionService.create(id, longLogin = longLogin, requestData = requestData, googleAccess = googleAccess)
+suspend fun User.newSession(call: ApplicationCall, longLogin: Boolean = false, googleAccess: GoogleAccess? = null) = SessionService.create(id, longLogin = longLogin, requestData = call.getRequestData(), googleAccess = googleAccess)
 suspend fun User.isRootOrNull(): Boolean? = UserService.checkIsRoot(id)
 suspend fun User.isRoot(): Boolean = isRootOrNull() ?: throw IllegalStateException("Can`t find user")
 suspend fun UserSession.isRoot() = UserService.checkIsRoot(userId)

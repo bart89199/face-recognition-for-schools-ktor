@@ -7,6 +7,7 @@ import com.batr.database.Database.suspendTransaction
 import io.ktor.server.application.*
 import io.ktor.server.config.*
 import io.ktor.server.plugins.origin
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -14,12 +15,17 @@ import kotlin.properties.Delegates
 
 object SessionService {
     var tokenLifeTimeMs by Delegates.notNull<Long>()
+    var longTokenLifeTimeMs by Delegates.notNull<Long>()
         private set
 
     fun load(application: Application) {
         tokenLifeTimeMs = application.environment.config.property("auth.token-life-time-ms").getAs()
+        longTokenLifeTimeMs = application.environment.config.property("auth.long-token-life-time-ms").getAs()
         transaction {
             SchemaUtils.create(SessionTable)
+        }
+        runBlocking {
+            getAll().forEach { it.check() }
         }
     }
 
@@ -34,7 +40,12 @@ object SessionService {
         )
     }
 
-    suspend fun create(userId: Int, requestData: RequestData, expiresIn: Long = tokenLifeTimeMs, googleAccess: GoogleAccess? = null) =
+    suspend fun create(
+        userId: Int,
+        requestData: RequestData,
+        expiresIn: Long = tokenLifeTimeMs,
+        googleAccess: GoogleAccess? = null
+    ) =
         suspendTransaction {
             val expiresAt = expiresIn + System.currentTimeMillis()
             val token = TokenGenerator.generateSessionToken()
@@ -47,6 +58,18 @@ object SessionService {
             }[SessionTable.id].value
             UserSession(id, userId, token, expiresAt, requestData, googleAccess)
         }
+
+    suspend fun create(
+        userId: Int,
+        requestData: RequestData,
+        longLogin: Boolean,
+        googleAccess: GoogleAccess? = null
+    ) = create(
+        userId,
+        requestData,
+        if (longLogin) longTokenLifeTimeMs else tokenLifeTimeMs,
+        googleAccess
+    )
 
     suspend fun getAll() = suspendTransaction {
         SessionTable.selectAll().toModel()
@@ -87,9 +110,16 @@ suspend fun UserSession.getUser() = getUserOrNull() ?: throw IllegalArgumentExce
 
 suspend fun CookieUserSession.delete() = SessionService.deleteByToken(token)
 
-suspend fun UserSession?.check() = this?.getUserOrNull() != null
+suspend fun UserSession?.check(): Boolean {
+    if (this == null) return false
+    if (this.getUserOrNull() == null || this.expiresAt < System.currentTimeMillis()) {
+        this.delete()
+        return false
+    }
+    return true
+}
 
-suspend fun CookieUserSession?.check() = this?.getSession()?.getUserOrNull() != null
+suspend fun CookieUserSession?.check() = this?.getSession()?.check() != null
 
 suspend fun User.removeAllSessions() = SessionService.removeAllUserSessions(id)
 

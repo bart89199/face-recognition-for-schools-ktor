@@ -6,6 +6,7 @@ import com.batr.auth.session.check
 import com.batr.auth.session.delete
 import com.batr.auth.user.UserService
 import com.batr.auth.user.newSession
+import com.batr.receiveOrRespond
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.http.content.*
@@ -13,6 +14,8 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 fun Application.configureLoginRouting() {
     routing {
@@ -26,19 +29,17 @@ fun Application.configureLoginRouting() {
             call.respondRedirect(HOME_PATH)
         }
         post("/api/login/local") {
-            val input = call.receive<Map<String, String>>()
-            val email = input["email"]
-            val password = input["password"]
-            if (email == null || password == null) {
-                call.respond(HttpStatusCode.BadRequest)
-                return@post
-            }
+            val input = call.receiveOrRespond<LoginData>() ?: return@post
+            val email = input.email
+            val password = input.password
+            val longLogin = input.longLogin
+
             val user = UserService.login(email, password)
             if (user == null) {
                 call.respond(HttpStatusCode.BadRequest)
                 return@post
             }
-            val session = user.newSession(call)
+            val session = user.newSession(call, longLogin)
             call.sessions.set(CookieUserSession(session.token))
             call.respond(HttpStatusCode.OK)
         }
@@ -59,3 +60,10 @@ private fun Route.alreadyLogin(build: Route.() -> Unit) {
     route.install(AlreadyLoginPlugin)
     route.build()
 }
+
+@Serializable
+private data class LoginData(
+    val email: String,
+    val password: String,
+    @SerialName("long_login") val longLogin: Boolean = false
+)
