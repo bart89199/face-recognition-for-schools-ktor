@@ -1,14 +1,13 @@
 package com.batr
 
 import com.batr.auth.configureAuth
-import com.batr.auth.user.UserService
 import com.batr.database.Database.configureDatabase
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 
-const val HOME_PATH = "/home"
+const val HOME_PATH = "/"
 const val LOGIN_PATH = "/login"
 fun main(args: Array<String>) {
     io.ktor.server.netty.EngineMain.main(args)
@@ -20,7 +19,7 @@ val applicationHttpClient = HttpClient(CIO) {
     }
 }
 
-suspend fun Application.module() {
+fun Application.module() {
     configureDatabase()
     configureAuth()
 

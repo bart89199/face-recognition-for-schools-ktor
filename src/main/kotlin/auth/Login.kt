@@ -2,6 +2,7 @@ package com.batr.auth
 
 import com.batr.HOME_PATH
 import com.batr.auth.session.CookieUserSession
+import com.batr.auth.session.check
 import com.batr.auth.user.UserService
 import com.batr.auth.user.newSession
 import io.ktor.http.*
@@ -14,16 +15,9 @@ import io.ktor.server.sessions.*
 
 fun Application.configureLoginRouting() {
     routing {
-        staticResources("/login", "login") {
-
-//            get {
-//                if (call.getSession() != null) {
-//                    call.respondRedirect(HOME_PATH)
-//                    return@get
-//                }
-//            }
+        alreadyLogin {
+            staticResources("/login", "login")
         }
-
         get("/logout") {
             call.sessions.clear<CookieUserSession>()
             call.respondRedirect(HOME_PATH)
@@ -41,9 +35,24 @@ fun Application.configureLoginRouting() {
                 call.respond(HttpStatusCode.BadRequest)
                 return@post
             }
-            val session = user.newSession()
+            val session = user.newSession(call)
             call.sessions.set(CookieUserSession(session.token))
             call.respond(HttpStatusCode.OK)
         }
     }
+}
+
+private val AlreadyLoginPlugin = createRouteScopedPlugin("AlreadyLoginPlugin") {
+    onCall { call ->
+        val session = call.getSession(false)
+        if (session.check()) {
+            call.respondRedirect(call.request.queryParameters["redirectUrl"] ?: HOME_PATH)
+        }
+    }
+}
+
+private fun Route.alreadyLogin(build: Route.() -> Unit) {
+    val route = createChild(BlankRouteSelector())
+    route.install(AlreadyLoginPlugin)
+    route.build()
 }

@@ -1,8 +1,5 @@
 package com.batr.auth.user
 
-import com.batr.auth.session.GoogleAccess
-import com.batr.auth.session.SessionService
-import com.batr.auth.user.UserTable.permissions
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -41,6 +38,7 @@ object UserTable : IntIdTable() {
     val name = varchar("name", 100)
     val email = varchar("email", 100).uniqueIndex()
     val password = varchar("password", 300)
+    val root = bool("root").default(false)
     val permissions = json<UserPermissions>("permissions", Json.Default)
 }
 
@@ -50,6 +48,7 @@ data class User(
     val name: String,
     val email: String,
     val password: String,
+    val root: Boolean = false,
     val permissions: UserPermissions,
 )
 
@@ -58,6 +57,7 @@ data class UserNoPass(
     val id: Int,
     val name: String,
     val email: String,
+    val root: Boolean = false,
     val permissions: UserPermissions,
 )
 
@@ -68,9 +68,9 @@ data class RawUser(
     val name: String,
     val email: String,
     val password: String,
+    val root: Boolean = false,
     val permissions: UserPermissions = DEFAULT_PERMISSIONS,
 )
 
-fun User.toRaw() = RawUser(name, email, password, permissions)
-fun User.toNoPass() = UserNoPass(id, name, email, permissions)
-suspend fun User.newSession(googleAccess: GoogleAccess? = null) = SessionService.create(id, googleAccess = googleAccess)
+fun User.toRaw() = RawUser(name, email, password, root, permissions)
+fun User.toNoPass() = UserNoPass(id, name, email, root, permissions)

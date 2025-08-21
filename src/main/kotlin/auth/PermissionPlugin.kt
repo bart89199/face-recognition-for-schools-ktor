@@ -35,18 +35,18 @@ val PermissionPlugin = createRouteScopedPlugin("PermissionPlugin", ::RequirePerm
     }
 }
 
-class PermissionRouteSelector(): RouteSelector() {
+class BlankRouteSelector(): RouteSelector() {
     override suspend fun evaluate(
         context: RoutingResolveContext,
         segmentIndex: Int
     ): RouteSelectorEvaluation {
-        return RouteSelectorEvaluation.Constant
+        return RouteSelectorEvaluation.Transparent
     }
 
 }
 
 fun Route.setPermissions(permissions: UserPermissions, build: Route.() -> Unit) {
-    val route = createChild(PermissionRouteSelector())
+    val route = createChild(BlankRouteSelector())
     route.install(PermissionPlugin) {
         need = permissions
     }

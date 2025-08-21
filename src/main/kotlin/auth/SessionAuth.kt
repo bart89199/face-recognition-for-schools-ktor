@@ -48,7 +48,7 @@ fun SessionsConfig.configureSessionsPlugin() {
 suspend fun ApplicationCall.getSession(autoRedirect: Boolean = true): UserSession? {
     val token: CookieUserSession? = sessions.get()
     val session = token?.getSession()
-    if (session == null) {
+    if (session == null && autoRedirect) {
         val redirectUrl = url {
             path(LOGIN_PATH)
             parameters.append("redirectUrl", request.uri)

@@ -37,7 +37,6 @@
         th, td { padding:9px 11px; font-size:.8rem; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; }
         th { background:#f1f5f9; font-weight:600; font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; }
         tbody tr:last-child td { border-bottom:none; }
-        .password-placeholder { font-family:monospace; letter-spacing:2px; font-size:.65rem; color:#475569; }
         .badge { background:#2563eb; color:#fff; padding:2px 6px 3px; border-radius:999px; font-size:.58rem; display:inline-block; }
         .row-actions { display:flex; flex-wrap:wrap; gap:6px; }
         .truncate { max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -60,7 +59,6 @@
             th { background:#0f172a; }
             button.outline { background:#1e293b; color:#f1f5f9; border-color:#334155; }
             button.outline:hover { background:#334155; }
-            .password-placeholder { color:#94a3b8; }
             .error { background:#7f1d1d; color:#fee2e2; }
             .success { background:#14532d; color:#dcfce7; }
         }
@@ -76,7 +74,7 @@
     <div id="ok" class="success" role="status"></div>
 
     <div class="layout">
-        <!-- Левая колонка: форма -->
+        <!-- Форма -->
         <div class="panel">
             <h2>Создать / обновить</h2>
             <form id="userForm" novalidate>
@@ -92,7 +90,7 @@
                 </label>
                 <label>
                     Пароль
-                    <input id="password" type="password" placeholder="(пусто — без изменения)"/>
+                    <input id="password" type="password" placeholder="Пароль (обязателен при создании)"/>
                 </label>
 
                 <div>
@@ -107,7 +105,7 @@
             </form>
         </div>
 
-        <!-- Правая колонка: список и поиск -->
+        <!-- Список -->
         <div class="panel">
             <div class="split-title">
                 <h2 style="margin:0;">Список пользователей</h2>
@@ -116,17 +114,17 @@
             <div class="filters">
                 <div class="filter-row">
                     <label style="flex:1; min-width:220px;">
-                        Имя (LIKE)
-                        <input type="text" id="filterName" placeholder="Часть имени"/>
+                        Имя
+                        <input type="text" id="filterName" placeholder="Имя"/>
                     </label>
-                    <button type="button" id="searchNameBtn" class="outline" style="height:38px;">Поиск имени</button>
+                    <button type="button" id="searchNameBtn" class="outline" style="height:38px;">Поиск по имени</button>
                 </div>
                 <div class="filter-row">
                     <label style="flex:1; min-width:220px;">
-                        Email (LIKE)
-                        <input type="text" id="filterEmail" placeholder="Часть email"/>
+                        Email
+                        <input type="text" id="filterEmail" placeholder="Email"/>
                     </label>
-                    <button type="button" id="searchEmailBtn" class="outline" style="height:38px;">Поиск email</button>
+                    <button type="button" id="searchEmailBtn" class="outline" style="height:38px;">Поиск по email</button>
                 </div>
                 <div class="filter-row" style="justify-content:flex-start;">
                     <button type="button" id="showAllBtn" class="outline">Показать все</button>
@@ -140,7 +138,6 @@
                         <th style="width:60px;">ID</th>
                         <th>Имя</th>
                         <th>Email</th>
-                        <th style="width:120px;">Пароль (hash)</th>
                         <th style="min-width:260px;">Права</th>
                         <th style="width:140px;"></th>
                     </tr>

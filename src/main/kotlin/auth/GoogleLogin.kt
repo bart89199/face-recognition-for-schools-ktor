@@ -6,6 +6,7 @@ import com.batr.auth.session.CookieUserSession
 import com.batr.auth.session.GoogleAccess
 import com.batr.auth.session.SessionService
 import com.batr.auth.session.delete
+import com.batr.auth.session.getRequestData
 import com.batr.auth.user.UserService
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -71,7 +72,7 @@ fun Application.configureGoogleOauthRooting() {
                             principal.expiresIn + System.currentTimeMillis(),
                             principal.refreshToken
                         )
-                        val newSession = SessionService.create(user.id, googleAccess = googleAccess)
+                        val newSession = SessionService.create(user.id, requestData = call.getRequestData(), googleAccess = googleAccess)
                         call.sessions.set(CookieUserSession(newSession.token))
 
                         redirects[state]?.let { redirect ->

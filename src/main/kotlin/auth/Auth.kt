@@ -1,6 +1,7 @@
 package com.batr.auth
 
 import com.batr.auth.session.SessionService
+import com.batr.auth.session.configureSessionManagement
 import com.batr.auth.user.UserService
 import com.batr.auth.user.configureUserManagement
 import io.ktor.server.application.*
@@ -24,5 +25,6 @@ fun Application.configureAuth() {
     configureGoogleOauthRooting()
 
     configureUserManagement()
+    configureSessionManagement()
 
 }
