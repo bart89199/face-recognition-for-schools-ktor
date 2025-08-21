@@ -3,6 +3,7 @@ package com.batr.auth
 import com.batr.HOME_PATH
 import com.batr.auth.session.CookieUserSession
 import com.batr.auth.session.check
+import com.batr.auth.session.delete
 import com.batr.auth.user.UserService
 import com.batr.auth.user.newSession
 import io.ktor.http.*
@@ -19,6 +20,8 @@ fun Application.configureLoginRouting() {
             staticResources("/login", "login")
         }
         get("/logout") {
+            val session = call.getSession(false) ?: return@get
+            session.delete()
             call.sessions.clear<CookieUserSession>()
             call.respondRedirect(HOME_PATH)
         }

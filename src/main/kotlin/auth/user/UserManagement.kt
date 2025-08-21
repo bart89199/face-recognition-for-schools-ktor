@@ -2,6 +2,7 @@ package com.batr.auth.user
 
 
 import com.batr.auth.getSession
+import com.batr.auth.session.delete
 import com.batr.auth.session.getAllSessions
 import com.batr.auth.session.getUser
 import com.batr.auth.setPermissions
@@ -26,7 +27,7 @@ data class UserUpdate(
 fun Application.configureUserManagement() {
     routing {
         authenticate("session-auth") {
-            route("/api/user") {
+            route("/api/user/profile") {
                 get {
                     val session = call.getSession() ?: return@get
                     val user = session.getUser().toNoPass()
@@ -161,6 +162,18 @@ fun Application.configureUserManagement() {
                             }
                             val sessions = user.getAllSessions()
                             call.respond(sessions)
+                        }
+                        delete("sessions") {
+                            val id = call.parameters["id"]?.toIntOrNull()
+                            if (id == null) {
+                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                                return@delete
+                            }
+                            val user = UserService.getById(id) ?: return@delete
+                            user.getAllSessions().forEach {
+                                it.delete()
+                            }
+                            call.respond(HttpStatusCode.NoContent)
                         }
                     }
 

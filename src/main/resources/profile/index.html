@@ -21,7 +21,7 @@
             border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px; font:inherit; background:#fff;
         }
         input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.35); }
-        button { font:inherit; border:none; cursor:pointer; border-radius:8px; padding:8px 14px; font-weight:600; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:6px; }
+        button { font:inherit; border:none; cursor:pointer; border-radius:8px; padding:8px 14px; font-weight:600; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:6px; line-height:1.1; }
         button.secondary { background:#475569; }
         button.danger { background:#dc2626; }
         button.outline { background:#fff; color:#1e293b; border:1px solid #cbd5e1; }
@@ -84,8 +84,8 @@
     </div>
 </header>
 <main>
-    <div id="err" class="error" role="alert"></div>
-    <div id="ok" class="success" role="status"></div>
+    <div id="err" class="error" role="alert" aria-live="assertive"></div>
+    <div id="ok" class="success" role="status" aria-live="polite"></div>
 
     <div class="grid">
         <!-- Форма профиля -->
@@ -94,15 +94,15 @@
             <form id="profileForm" novalidate>
                 <label>
                     Имя
-                    <input id="name" type="text" required placeholder="Ваше имя"/>
+                    <input id="name" type="text" required placeholder="Ваше имя" autocomplete="name"/>
                 </label>
                 <label>
                     Email (нельзя изменить в этой панели)
-                    <input id="email" type="email" disabled />
+                    <input id="email" type="email" disabled autocomplete="email"/>
                 </label>
                 <label>
                     Новый пароль
-                    <input id="password" type="password" placeholder="Оставьте пустым, чтобы не менять"/>
+                    <input id="password" type="password" placeholder="Оставьте пустым, чтобы не менять" autocomplete="new-password"/>
                 </label>
                 <div style="display:flex; gap:10px;">
                     <button type="submit" id="saveBtn">Сохранить</button>
@@ -115,18 +115,21 @@
         <!-- Сессии -->
         <div class="panel">
             <h2 style="margin-top:0;">Активные сессии</h2>
-            <div class="sessions-actions">
-                <button type="button" id="reloadSessions" class="outline">Обновить</button>
-                <button type="button" id="deleteAllSessions" class="danger outline">Удалить все сессии</button>
+            <div class="muted" style="margin:-6px 0 12px;">
+                Вы можете завершить отдельную сессию или все сразу. Текущая подсвечена и отмечена бейджем.
             </div>
-            <table>
+            <div class="sessions-actions">
+                <button type="button" id="reloadSessions" class="outline" title="Обновить список сессий">Обновить</button>
+                <button type="button" id="deleteAllSessions" class="danger outline" title="Удалить все активные сессии">Удалить все сессии</button>
+            </div>
+            <table aria-describedby="sessionsCount">
                 <thead>
                 <tr>
-                    <th>IP</th>
-                    <th>User-Agent</th>
-                    <th>Login Time</th>
-                    <th>Google</th>
-                    <th></th>
+                    <th scope="col">Время входа</th>
+                    <th scope="col">User-Agent</th>
+                    <th scope="col">IP</th>
+                    <th scope="col">Google</th>
+                    <th scope="col" style="width:60px;">Действия</th>
                 </tr>
                 </thead>
                 <tbody id="sessionsBody"></tbody>

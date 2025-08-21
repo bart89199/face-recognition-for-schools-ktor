@@ -9,14 +9,15 @@
         :root { font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif; color-scheme: light dark; }
         * { box-sizing: border-box; }
         body { margin:0; background:#f5f7fb; color:#0f172a; }
-        header { position:sticky; top:0; background:#1e293b; color:#f1f5f9; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px; z-index:10; }
+        header { position:sticky; top:0; background:#1e293b; color:#f1f5f9; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px; z-index:40; }
         header h1 { margin:0; font-size:1.1rem; font-weight:600; letter-spacing:.5px; }
         .logout-btn { background:#dc2626; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-weight:600; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:6px; }
         .logout-btn:hover { background:#b91c1c; }
-        main { max-width:1400px; margin:24px auto 60px; padding:0 28px 40px; display:flex; flex-direction:column; gap:28px; }
-        .layout { display:grid; gap:28px; grid-template-columns:360px 1fr; align-items:start; }
+        main { max-width:1700px; margin:24px auto 60px; padding:0 28px 40px; display:flex; flex-direction:column; gap:28px; }
+        .layout { display:grid; gap:28px; grid-template-columns:380px 1fr 480px; align-items:start; }
+        @media (max-width:1700px){ .layout { grid-template-columns:360px 1fr; } .sessions-panel { grid-column:1 / -1; } }
         @media (max-width:1100px){ .layout { grid-template-columns:1fr; } }
-        .panel { background:#fff; padding:20px 22px 26px; border-radius:18px; box-shadow:0 4px 18px rgba(0,0,0,.05); }
+        .panel { background:#fff; padding:20px 22px 26px; border-radius:18px; box-shadow:0 4px 18px rgba(0,0,0,.05); position:relative; }
         h2 { margin:0 0 14px; font-size:1rem; }
         form { display:flex; flex-direction:column; gap:14px; }
         label { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; display:flex; flex-direction:column; gap:4px; color:#475569; }
@@ -27,22 +28,26 @@
         button { font:inherit; border:none; cursor:pointer; border-radius:8px; padding:8px 14px; font-weight:600; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:6px; }
         button.secondary { background:#475569; }
         button.danger { background:#dc2626; }
+        button.danger.outline { border:1px solid #dc2626; background:transparent; color:#b91c1c; }
+        button.danger.outline:hover { background:#fee2e2; }
         button.outline { background:#fff; color:#1e293b; border:1px solid #cbd5e1; }
         button.outline:hover { background:#f1f5f9; }
-        button:disabled { opacity:.5; cursor:not-allowed; }
+        button:disabled { opacity:.55; cursor:not-allowed; }
         .perm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 12px; }
         .perm-item { font-size:.63rem; line-height:1.2; display:flex; gap:6px; background:#f1f5f9; padding:6px 8px; border-radius:8px; align-items:flex-start; }
         .inline-field { display:flex; align-items:center; gap:8px; font-size:.7rem; }
         .inline-field input { margin:0; }
         .actions-inline { display:flex; gap:10px; flex-wrap:wrap; }
         table { width:100%; border-collapse:collapse; background:#fff; border-radius:16px; overflow:hidden; }
-        th, td { padding:9px 11px; font-size:.8rem; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; }
-        th { background:#f1f5f9; font-weight:600; font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; }
+        th, td { padding:8px 10px; font-size:.75rem; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; }
+        th { background:#f1f5f9; font-weight:600; font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; }
         tbody tr:last-child td { border-bottom:none; }
-        .badge { background:#2563eb; color:#fff; padding:2px 6px 3px; border-radius:999px; font-size:.58rem; display:inline-block; }
+        .badge { background:#2563eb; color:#fff; padding:2px 6px 3px; border-radius:999px; font-size:.55rem; display:inline-block; }
         .badge-root { background:#9333ea; }
-        .row-actions { display:flex; flex-wrap:wrap; gap:6px; }
-        .truncate { max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .badge-google { background:#16a34a; }
+        .row-actions { display:flex; flex-wrap:wrap; gap:5px; }
+        .truncate { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .truncate-wide { max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .muted { color:#64748b; font-size:.65rem; letter-spacing:.04em; }
         .error { background:#fee2e2; color:#991b1b; padding:10px 12px; border-radius:10px; font-size:.7rem; display:none; }
         .success { background:#dcfce7; color:#166534; padding:10px 12px; border-radius:10px; font-size:.7rem; display:none; }
@@ -52,7 +57,13 @@
         .spinner { width:14px; height:14px; border:3px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
         .table-wrapper { overflow:auto; max-height:60vh; border-radius:16px; }
-        .split-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 12px; }
+        .sessions-table-wrapper { overflow:auto; max-height:420px; border-radius:14px; }
+        .section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; }
+        .divider { height:1px; background:#e2e8f0; margin:18px 0; }
+        .tag { background:#e2e8f0; color:#334155; padding:3px 7px 4px; font-size:.55rem; border-radius:6px; letter-spacing:.05em; text-transform:uppercase; }
+        .empty { padding:10px 0; font-size:.65rem; color:#64748b; }
+        .nowrap { white-space:nowrap; }
+        .sticky-tools { position:sticky; top:-20px; background:#fff; padding:0 0 10px; z-index:5; }
         @media (prefers-color-scheme: dark) {
             body { background:#0f172a; color:#f1f5f9; }
             .panel { background:#1e293b; box-shadow:0 4px 22px rgba(0,0,0,.55); }
@@ -64,7 +75,18 @@
             button.outline:hover { background:#334155; }
             .error { background:#7f1d1d; color:#fee2e2; }
             .success { background:#14532d; color:#dcfce7; }
+            .divider { background:#334155; }
+            .tag { background:#334155; color:#e2e8f0; }
         }
+        .sessions-panel-loading::after {
+            content:''; position:absolute; inset:0; background:rgba(255,255,255,.55); backdrop-filter:blur(1px);
+        }
+        .sessions-panel-loading::before {
+            content:''; position:absolute; top:50%; left:50%; width:34px; height:34px;
+            margin:-17px 0 0 -17px; border:4px solid #bae6fd; border-top-color:#0284c7; border-radius:50%; animation:spin .7s linear infinite;
+        }
+        .small-btn { font-size:.6rem; padding:5px 8px; font-weight:500; }
+        .danger-text { color:#b91c1c; }
     </style>
 </head>
 <body>
@@ -78,7 +100,7 @@
 
     <div class="layout">
         <!-- Форма -->
-        <div class="panel">
+        <div class="panel" id="userFormPanel">
             <h2>Создать / обновить</h2>
             <form id="userForm" novalidate>
                 <input type="hidden" id="editId"/>
@@ -115,10 +137,11 @@
             </form>
         </div>
 
-        <!-- Список -->
+        <!-- Пользователи -->
         <div class="panel">
-            <div class="split-title">
+            <div class="section-head">
                 <h2 style="margin:0;">Список пользователей</h2>
+                <div class="tag" id="selectedUserTag" hidden>Выбран: <span id="selectedUserName"></span></div>
             </div>
 
             <div class="filters">
@@ -145,18 +168,54 @@
                 <table id="usersTable">
                     <thead>
                     <tr>
-                        <th style="width:60px;">ID</th>
+                        <th style="width:56px;">ID</th>
                         <th>Имя</th>
                         <th>Email</th>
-                        <th style="width:70px;">Root</th>
-                        <th style="min-width:260px;">Права</th>
-                        <th style="width:140px;"></th>
+                        <th style="width:60px;">Root</th>
+                        <th style="min-width:220px;">Права</th>
+                        <th style="width:148px;"></th>
                     </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
             <div class="muted" id="countInfo" style="margin-top:10px;"></div>
+        </div>
+
+        <!-- Сессии -->
+        <div class="panel sessions-panel sessions-panel-disabled" id="sessionsPanel" aria-live="polite">
+            <div class="section-head sticky-tools">
+                <h2 style="margin:0;">Сессии пользователя</h2>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button type="button" id="refreshSessionsBtn" class="outline small-btn" disabled>Обновить</button>
+                    <button type="button" id="deleteUserSessionsBtn" class="danger outline small-btn" disabled title="Удалить все сессии пользователя">Удалить все</button>
+                </div>
+            </div>
+            <div class="muted" id="sessionsInfo" style="margin-bottom:8px;">Выберите пользователя</div>
+
+            <div class="sessions-table-wrapper">
+                <table id="sessionsTable" style="display:none;">
+                    <thead>
+                    <tr>
+                        <th style="width:60px;">ID</th>
+                        <th>Логин</th>
+                        <th>IP</th>
+                        <th>User-Agent</th>
+                        <th>Истекает</th>
+                        <th style="width:56px;">G</th>
+                        <th style="width:100px;"></th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div id="sessionsEmpty" class="empty" style="display:none;">Нет активных сессий</div>
+            </div>
+
+            <div class="divider"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div class="muted" style="font-size:.58rem;">Глобальные операции</div>
+                <button type="button" id="deleteAllSessionsBtn" class="danger outline small-btn" title="Удалить абсолютно все сессии (всех пользователей)">Удалить все сессии (глобально)</button>
+            </div>
         </div>
     </div>
 </main>

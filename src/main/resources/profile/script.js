@@ -1,255 +1,351 @@
-(function() {
+// script.js (панель профиля + управление сессиями с поддержкой id)
+
+(() => {
+    // ==== DOM ====
+    const form = document.getElementById('profileForm');
+    const inputName = document.getElementById('name');
+    const inputEmail = document.getElementById('email');
+    const inputPassword = document.getElementById('password');
+    const btnSave = document.getElementById('saveBtn');
+    const btnReset = document.getElementById('resetBtn');
+
     const errBox = document.getElementById('err');
     const okBox = document.getElementById('ok');
-    const form = document.getElementById('profileForm');
-    const nameInput = document.getElementById('name');
-    const emailInput = document.getElementById('email');
-    const passInput = document.getElementById('password');
-    const saveBtn = document.getElementById('saveBtn');
-    const resetBtn = document.getElementById('resetBtn');
 
     const sessionsBody = document.getElementById('sessionsBody');
     const sessionsCount = document.getElementById('sessionsCount');
-    const reloadSessionsBtn = document.getElementById('reloadSessions');
-    const deleteAllSessionsBtn = document.getElementById('deleteAllSessions');
+    const btnReloadSessions = document.getElementById('reloadSessions');
+    const btnDeleteAllSessions = document.getElementById('deleteAllSessions');
 
+    // ==== STATE ====
+    let originalProfile = null;
+    let loadingProfile = false;
+    let savingProfile = false;
     let currentSessionId = null;
-    let originalUser = null;
+    let loadingSessions = false;
 
+    // ==== UTIL ====
+    function showError(msg) {
+        if (!msg) return;
+        errBox.textContent = msg;
+        errBox.classList.add('show');
+        okBox.classList.remove('show');
+    }
+    function showSuccess(msg) {
+        if (!msg) return;
+        okBox.textContent = msg;
+        okBox.classList.add('show');
+        errBox.classList.remove('show');
+    }
     function clearMessages() {
         errBox.classList.remove('show');
         okBox.classList.remove('show');
-        errBox.textContent='';
-        okBox.textContent='';
     }
-    function showError(m) { clearMessages(); errBox.textContent = m; errBox.classList.add('show'); }
-    function showOk(m) { clearMessages(); okBox.textContent = m; okBox.classList.add('show'); }
-
-    async function fetchJSON(url, opts={}) {
-        const res = await fetch(url, {
-            credentials:'include',
-            headers: { 'Content-Type':'application/json', ...(opts.headers||{}) },
-            ...opts
-        });
-        if (res.status === 204) return null;
-        if (!res.ok) {
-            const txt = await res.text().catch(()=> '');
-            throw new Error(txt || ('HTTP '+res.status));
-        }
-        try { return await res.json(); } catch { return null; }
-    }
-
-    async function loadUser() {
-        try {
-            const user = await fetchJSON('/api/user');
-            originalUser = user;
-            nameInput.value = user.name || '';
-            emailInput.value = user.email || '';
-            passInput.value = '';
-        } catch (e) {
-            showError('Не удалось получить профиль: '+e.message);
-        }
-    }
-
-    function resetForm() {
-        if (!originalUser) return;
-        nameInput.value = originalUser.name || '';
-        passInput.value = '';
-        clearMessages();
-    }
-
-    function setLoading(btn, loading) {
-        if (!btn) return;
-        if (loading) {
-            btn.disabled = true;
-            btn.dataset.original = btn.textContent;
-            btn.innerHTML = '<div class="spinner"></div>';
+    function isoToLocalString(ts) {
+        // ts может быть number (ms) или строка
+        let date;
+        if (typeof ts === 'number') {
+            // Определим секунды или миллисекунды
+            if (ts < 3_000_000_000) date = new Date(ts * 1000);
+            else date = new Date(ts);
         } else {
+            date = new Date(ts);
+        }
+        if (isNaN(date.getTime())) return '-';
+        return date.toLocaleString();
+    }
+    function booleanText(v) {
+        return v ? 'Да' : 'Нет';
+    }
+    function sanitize(text) {
+        if (text == null) return '';
+        return String(text).replace(/[&<>"']/g, ch => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[ch]));
+    }
+    function disable(el, state) {
+        if (!el) return;
+        el.disabled = !!state;
+    }
+
+    function withButtonSpinner(btn, fn) {
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner"></span>';
+        btn.disabled = true;
+        return fn().finally(() => {
+            btn.innerHTML = originalHTML;
             btn.disabled = false;
-            if (btn.dataset.original) {
-                btn.textContent = btn.dataset.original;
-                delete btn.dataset.original;
+        });
+    }
+
+    // ==== PROFILE ====
+    async function loadProfile() {
+        if (loadingProfile) return;
+        loadingProfile = true;
+        try {
+            // Предполагаемый эндпоинт. Если у вас другой (например /api/user/me) — замените.
+            const resp = await fetch('/api/user/profile', { method: 'GET' });
+            if (resp.status === 401) {
+                location.href = '/login';
+                return;
             }
+            if (!resp.ok) {
+                showError('Не удалось загрузить профиль');
+                return;
+            }
+            const data = await resp.json();
+            originalProfile = data;
+            inputName.value = data.name || '';
+            inputEmail.value = data.email || '';
+            inputPassword.value = '';
+        } catch (e) {
+            console.error(e);
+            showError('Ошибка сети при загрузке профиля');
+        } finally {
+            loadingProfile = false;
         }
     }
 
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    async function saveProfile() {
+        if (savingProfile) return;
         clearMessages();
-        const name = nameInput.value.trim();
-        const password = passInput.value;
+        const name = inputName.value.trim();
+        const password = inputPassword.value.trim();
         if (!name) {
-            showError('Имя обязательно.');
+            showError('Имя не может быть пустым');
             return;
         }
         const payload = { name };
-        if (password) payload.password = password;
+        if (password.length > 0) payload.password = password;
 
-        setLoading(saveBtn, true);
+        savingProfile = true;
+        disable(btnSave, true);
+
         try {
-            const res = await fetch('/api/user', {
-                method:'PUT',
-                credentials:'include',
-                headers:{'Content-Type':'application/json'},
+            // Предполагаемый PUT эндпоинт
+            const resp = await fetch('/api/user/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type':'application/json' },
                 body: JSON.stringify(payload)
             });
-            if (res.status === 204) {
-                showOk('Профиль обновлён');
-                originalUser.name = name;
-                passInput.value = '';
-            } else {
-                const txt = await res.text().catch(()=> '');
-                showError(txt || ('Ошибка обновления ('+res.status+')'));
+            if (resp.status === 401) {
+                location.reload();
+                return;
             }
-        } catch (err) {
-            showError(err.message);
+            if (!resp.ok) {
+                const txt = await resp.text();
+                showError('Не удалось сохранить профиль: ' + (txt || resp.status));
+                return;
+            }
+            showSuccess('Профиль сохранён');
+            inputPassword.value = '';
+            // Обновить оригинал
+            originalProfile = { ...originalProfile, name };
+        } catch (e) {
+            console.error(e);
+            showError('Ошибка сети при сохранении');
         } finally {
-            setLoading(saveBtn, false);
+            savingProfile = false;
+            disable(btnSave, false);
         }
-    });
+    }
 
-    resetBtn.addEventListener('click', resetForm);
+    function resetProfileForm() {
+        clearMessages();
+        if (!originalProfile) return;
+        inputName.value = originalProfile.name || '';
+        inputPassword.value = '';
+    }
 
-    // ---- Sessions ----
+    // ==== SESSIONS ====
     async function loadCurrentSession() {
         try {
-            const s = await fetchJSON('/api/user/sessions/current');
-            currentSessionId = s?.id ?? null;
-        } catch {
-            currentSessionId = null;
+            const resp = await fetch('/api/user/sessions/current');
+            if (resp.status === 401) {
+                // неавторизован => редирект
+                location.href = '/login';
+                return;
+            }
+            if (!resp.ok) {
+                // тихо: не критично
+                return;
+            }
+            const data = await resp.json();
+            if (data && typeof data.id !== 'undefined') {
+                currentSessionId = data.id;
+            }
+        } catch (e) {
+            console.warn('Не удалось получить текущую сессию', e);
         }
     }
 
-    function formatTime(ms) {
+    async function loadSessions() {
+        if (loadingSessions) return;
+        loadingSessions = true;
         try {
-            return new Date(ms).toLocaleString();
-        } catch { return ms; }
-    }
-
-    function escapeHtml(str) {
-        return (str||'').toString().replace(/[&<>"']/g, c => ({
-            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-        }[c]));
-    }
-
-    function shortenUA(ua) {
-        if (!ua) return '';
-        if (ua.length > 55) return ua.slice(0,52)+'...';
-        return ua;
+            const resp = await fetch('/api/user/sessions');
+            if (resp.status === 401) {
+                location.href = '/login';
+                return;
+            }
+            if (!resp.ok) {
+                showError('Не удалось загрузить список сессий');
+                return;
+            }
+            const list = await resp.json();
+            renderSessions(list);
+        } catch (e) {
+            console.error(e);
+            showError('Ошибка сети при загрузке сессий');
+        } finally {
+            loadingSessions = false;
+        }
     }
 
     function renderSessions(list) {
         sessionsBody.innerHTML = '';
+        if (!Array.isArray(list) || list.length === 0) {
+            sessionsBody.innerHTML = `<tr><td colspan="5" style="padding:14px; text-align:center; color:#64748b;">Сессий нет</td></tr>`;
+            sessionsCount.textContent = 'Сессий: 0';
+            return;
+        }
+        const frag = document.createDocumentFragment();
+
         list.forEach(s => {
             const tr = document.createElement('tr');
-            const isCurrent = s.id === currentSessionId;
+            const isCurrent = currentSessionId != null && s.id === currentSessionId;
             if (isCurrent) tr.classList.add('current-session');
 
-            const ipCell = document.createElement('td');
-            if (isCurrent) {
-                const badge = document.createElement('span');
-                badge.className = 'current-badge';
-                badge.textContent = 'ТЕКУЩАЯ';
-                ipCell.appendChild(badge);
-            }
-            ipCell.appendChild(document.createTextNode(escapeHtml(s.requestData.ip||'')));
+            const loginTime = s?.requestData?.login_time;
+            const ip = s?.requestData?.ip;
+            const ua = s?.requestData?.user_agent;
 
-            const uaCell = document.createElement('td');
-            uaCell.textContent = shortenUA(s.requestData.user_agent || s.requestData.userAgent);
+            const tdTime = document.createElement('td');
+            tdTime.textContent = isoToLocalString(loginTime);
 
-            const timeCell = document.createElement('td');
-            const loginTime = s.requestData.login_time ?? s.requestData.loginTime;
-            timeCell.textContent = formatTime(loginTime);
+            const tdUA = document.createElement('td');
+            tdUA.innerHTML = (isCurrent ? '<span class="current-badge">ТЕКУЩАЯ</span>' : '') + `<span>${sanitize(ua || '')}</span>`;
 
-            const googleCell = document.createElement('td');
-            googleCell.textContent = s.googleLogin ? 'Yes' : 'No';
+            const tdIP = document.createElement('td');
+            tdIP.textContent = ip || '-';
 
-            const actionsCell = document.createElement('td');
-            if (typeof s.id === 'number') {
-                const delBtn = document.createElement('button');
-                delBtn.type = 'button';
-                delBtn.className = 'danger outline';
-                delBtn.dataset.del = s.id;
-                delBtn.textContent = 'X';
-                delBtn.title = 'Удалить сессию';
-                actionsCell.appendChild(delBtn);
-            }
+            const tdGoogle = document.createElement('td');
+            tdGoogle.textContent = booleanText(s.googleLogin);
 
-            tr.appendChild(ipCell);
-            tr.appendChild(uaCell);
-            tr.appendChild(timeCell);
-            tr.appendChild(googleCell);
-            tr.appendChild(actionsCell);
+            const tdActions = document.createElement('td');
+            tdActions.style.whiteSpace = 'nowrap';
 
-            sessionsBody.appendChild(tr);
-        });
-        sessionsCount.textContent = 'Всего сессий: ' + list.length;
-    }
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'outline danger';
+            delBtn.style.fontSize = '.6rem';
+            delBtn.style.padding = '5px 8px';
+            delBtn.textContent = 'Удалить';
+            delBtn.dataset.sessionId = s.id;
 
-    async function loadSessions() {
-        try {
-            await loadCurrentSession();
-            const list = await fetchJSON('/api/user/sessions');
-            renderSessions(list||[]);
-        } catch (e) {
-            showError('Не удалось получить список сессий: '+e.message);
-        }
-    }
-
-    sessionsBody.addEventListener('click', async (e) => {
-        const btn = e.target.closest('button[data-del]');
-        if (!btn) return;
-        const id = btn.dataset.del;
-        if (!confirm('Удалить сессию?'+(parseInt(id) === currentSessionId ? ' (Это текущая — вы выйдете)' : ''))) return;
-        btn.disabled = true;
-        try {
-            const res = await fetch('/api/user/sessions/'+id, {
-                method:'DELETE',
-                credentials:'include'
+            delBtn.addEventListener('click', () => {
+                deleteSingleSession(s.id, isCurrent);
             });
-            if (res.status === 204) {
-                if (parseInt(id) === currentSessionId) {
+
+            tdActions.appendChild(delBtn);
+
+            tr.appendChild(tdTime);
+            tr.appendChild(tdUA);
+            tr.appendChild(tdIP);
+            tr.appendChild(tdGoogle);
+            tr.appendChild(tdActions);
+            frag.appendChild(tr);
+        });
+
+        sessionsBody.appendChild(frag);
+        sessionsCount.textContent = 'Сессий: ' + list.length;
+    }
+
+    async function deleteSingleSession(id, isCurrent) {
+        clearMessages();
+        if (typeof id === 'undefined' || id === null) {
+            showError('ID сессии отсутствует');
+            return;
+        }
+        if (!confirm('Удалить выбранную сессию?')) return;
+        try {
+            const resp = await fetch('/api/user/sessions/' + encodeURIComponent(id), { method: 'DELETE' });
+            if (resp.status === 401) {
+                location.reload();
+                return;
+            }
+            if (resp.status === 204) {
+                if (isCurrent) {
+                    // Текущая — страница перезагрузится и приведёт к редиректу
                     location.reload();
                     return;
                 }
-                showOk('Сессия удалена');
-                loadSessions();
+                showSuccess('Сессия удалена');
+                await reloadSessionsFlow();
             } else {
-                const txt = await res.text().catch(()=> '');
-                showError(txt || ('Ошибка удаления ('+res.status+')'));
+                const txt = await resp.text();
+                showError('Не удалось удалить сессию: ' + (txt || resp.status));
             }
-        } catch (err) {
-            showError(err.message);
-        } finally {
-            btn.disabled = false;
+        } catch (e) {
+            console.error(e);
+            showError('Ошибка сети при удалении');
         }
-    });
+    }
 
-    deleteAllSessionsBtn.addEventListener('click', async () => {
-        if (!confirm('Удалить ВСЕ сессии? Вы будете разлогинены.')) return;
-        deleteAllSessionsBtn.disabled = true;
+    async function deleteAllSessions() {
+        clearMessages();
+        if (!confirm('Удалить все активные сессии? (Текущая тоже будет завершена)')) return;
         try {
-            const res = await fetch('/api/user/sessions', {
-                method:'DELETE',
-                credentials:'include'
-            });
-            if (res.status === 204) {
+            const resp = await fetch('/api/user/sessions', { method: 'DELETE' });
+            if (resp.status === 401) {
+                location.reload();
+                return;
+            }
+            if (resp.status === 204) {
                 location.reload();
             } else {
-                const txt = await res.text().catch(()=> '');
-                showError(txt || ('Ошибка ('+res.status+')'));
+                const txt = await resp.text();
+                showError('Не удалось удалить все сессии: ' + (txt || resp.status));
             }
-        } catch (err) {
-            showError(err.message);
-        } finally {
-            deleteAllSessionsBtn.disabled = false;
+        } catch (e) {
+            console.error(e);
+            showError('Ошибка сети при удалении всех сессий');
         }
+    }
+
+    async function reloadSessionsFlow() {
+        await loadCurrentSession(); // может измениться после операций
+        await loadSessions();
+    }
+
+    // ==== EVENTS ====
+    form?.addEventListener('submit', e => {
+        e.preventDefault();
+        saveProfile();
     });
 
-    reloadSessionsBtn.addEventListener('click', loadSessions);
+    btnReset?.addEventListener('click', () => {
+        resetProfileForm();
+        clearMessages();
+    });
 
-    // init
-    loadUser();
-    loadSessions();
+    btnReloadSessions?.addEventListener('click', () => {
+        withButtonSpinner(btnReloadSessions, async () => {
+            clearMessages();
+            await reloadSessionsFlow();
+        });
+    });
+
+    btnDeleteAllSessions?.addEventListener('click', () => {
+        withButtonSpinner(btnDeleteAllSessions, async () => {
+            await deleteAllSessions();
+        });
+    });
+
+    // ==== INIT ====
+    (async function init() {
+        await loadProfile();
+        await reloadSessionsFlow();
+    })();
 
 })();
