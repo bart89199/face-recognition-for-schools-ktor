@@ -1,11 +1,14 @@
 (function() {
     const apiRoot = '/auth/manage';
+    const currentUserApi = '/api/user';
     const errBox = document.getElementById('err');
     const okBox = document.getElementById('ok');
     const tableBody = document.querySelector('#usersTable tbody');
     const countInfo = document.getElementById('countInfo');
+    const rootCheckbox = document.getElementById('rootFlag');
 
-    // Удалён manage_users, возвращено название "Управление доступом"
+    let isCurrentRoot = false; // определим после запроса /api/user
+
     const permDescriptions = {
         stream: 'Просмотр видео',
         door_control: 'Управление дверью',
@@ -69,11 +72,36 @@
         });
         if (res.status === 204) return null;
         if (!res.ok) {
-            // Выводим текст ошибки сервера
             const txt = await res.text().catch(()=> '');
+            if (res.status === 403) {
+                throw new Error(txt || 'Недостаточно прав');
+            }
             throw new Error(txt || ('HTTP '+res.status));
         }
         try { return await res.json(); } catch { return null; }
+    }
+
+    async function loadCurrentUser() {
+        try {
+            const me = await fetchJSON(currentUserApi);
+            if (me) {
+                isCurrentRoot = !!me.root;
+                updateRootCheckboxState();
+            }
+        } catch (e) {
+            // если не удалось — просто продолжаем
+        }
+    }
+
+    function updateRootCheckboxState() {
+        // если не root текущий пользователь — не даём менять root флаг
+        if (!isCurrentRoot) {
+            rootCheckbox.disabled = true;
+            rootCheckbox.title = 'Только root может изменять этот флаг';
+        } else {
+            rootCheckbox.disabled = false;
+            rootCheckbox.title = '';
+        }
     }
 
     async function loadAll() {
@@ -115,8 +143,8 @@
             clearMessages();
             return;
         } catch (eExact) {
-            // Если 400/500 — показать её и не идти дальше
-            if (!/404/.test(eExact.message)) {
+            if (eExact.message !== 'HTTP 404' && !/404/.test(eExact.message)) {
+                // если не 404 — ошибка (400/403/500)
                 showError(eExact.message);
                 return;
             }
@@ -153,15 +181,16 @@
         users.forEach(u => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-        <td class="nowrap">${u.id}</td>
-        <td class="truncate" title="${escapeHtml(u.name)}">${escapeHtml(u.name)}</td>
-        <td class="truncate" title="${escapeHtml(u.email)}">${escapeHtml(u.email)}</td>
-        <td>${renderPermBadges(u.permissions)}</td>
-        <td class="row-actions">
-          <button type="button" class="outline" data-edit="${u.id}">Ред.</button>
-          <button type="button" class="danger outline" data-del="${u.id}">Удалить</button>
-        </td>
-      `;
+                <td class="nowrap">${u.id}</td>
+                <td class="truncate" title="${escapeHtml(u.name)}">${escapeHtml(u.name)}</td>
+                <td class="truncate" title="${escapeHtml(u.email)}">${escapeHtml(u.email)}</td>
+                <td>${u.root ? '<span class="badge badge-root" title="root">root</span>' : ''}</td>
+                <td>${renderPermBadges(u.permissions)}</td>
+                <td class="row-actions">
+                    <button type="button" class="outline" data-edit="${u.id}">Ред.</button>
+                    <button type="button" class="danger outline" data-del="${u.id}">Удалить</button>
+                </td>
+            `;
             tableBody.appendChild(tr);
         });
     }
@@ -182,6 +211,10 @@
                 const res = await fetch(apiRoot+'/'+btn.dataset.del, { method:'DELETE', credentials:'include' });
                 if (!res.ok) {
                     const txt = await res.text().catch(()=> '');
+                    if (res.status === 403) {
+                        showError('Недостаточно прав');
+                        return;
+                    }
                     showError(txt || ('Ошибка удаления '+res.status));
                     return;
                 }
@@ -199,6 +232,7 @@
         document.getElementById('name').value = user.name;
         document.getElementById('email').value = user.email;
         document.getElementById('password').value = '';
+        rootCheckbox.checked = !!user.root;
         fillPerms(user.permissions || {});
         document.getElementById('saveBtn').textContent = 'Обновить';
         clearMessages();
@@ -209,8 +243,10 @@
         document.getElementById('name').value = '';
         document.getElementById('email').value = '';
         document.getElementById('password').value = '';
+        rootCheckbox.checked = false;
         fillPerms({});
         document.getElementById('saveBtn').textContent = 'Создать';
+        updateRootCheckboxState();
     }
 
     document.getElementById('resetBtn').addEventListener('click', () => { resetForm(); clearMessages(); });
@@ -230,6 +266,8 @@
         const name = document.getElementById('name').value.trim();
         const email = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
+        const rootFlag = rootCheckbox.checked;
+
         if (!name || !email) {
             showError('Имя и email обязательны');
             return;
@@ -243,9 +281,10 @@
         const originalText = btn.textContent;
         btn.disabled = true;
         btn.innerHTML = '<div class="spinner"></div>';
+
         try {
             if (id) {
-                const payload = { name, email, permissions: perms };
+                const payload = { name, email, permissions: perms, root: rootFlag };
                 if (password) payload.password = password;
                 const res = await fetch(apiRoot+'/'+id, {
                     method:'PUT', credentials:'include',
@@ -257,10 +296,14 @@
                     await loadAll();
                 } else {
                     const txt = await res.text().catch(()=> '');
-                    showError(txt || ('Ошибка обновления ('+res.status+')'));
+                    if (res.status === 403) {
+                        showError('Недостаточно прав');
+                    } else {
+                        showError(txt || ('Ошибка обновления ('+res.status+')'));
+                    }
                 }
             } else {
-                const payload = { name, email, password, permissions: perms };
+                const payload = { name, email, password, permissions: perms, root: rootFlag };
                 const res = await fetch(apiRoot, {
                     method:'POST', credentials:'include',
                     headers:{'Content-Type':'application/json'},
@@ -273,7 +316,11 @@
                     await loadAll();
                 } else {
                     const txt = await res.text().catch(()=> '');
-                    showError(txt || ('Не удалось создать ('+res.status+')'));
+                    if (res.status === 403) {
+                        showError('Недостаточно прав');
+                    } else {
+                        showError(txt || ('Не удалось создать ('+res.status+')'));
+                    }
                 }
             }
         } catch (err) {
@@ -285,5 +332,8 @@
     });
 
     // Инициализация
-    loadAll();
+    (async function init() {
+        await loadCurrentUser();
+        await loadAll();
+    })();
 })();

@@ -48,6 +48,9 @@ object SessionService {
             UserSession(id, userId, token, expiresAt, requestData, googleAccess)
         }
 
+    suspend fun getAll() = suspendTransaction {
+        SessionTable.selectAll().toModel()
+    }
 
     suspend fun getById(id: Int) = suspendTransaction {
         SessionTable.selectAll().where { SessionTable.id eq id }.toModel().firstOrNull()

@@ -2,6 +2,7 @@ package com.batr.auth.user
 
 
 import com.batr.auth.getSession
+import com.batr.auth.session.getAllSessions
 import com.batr.auth.session.getUser
 import com.batr.auth.setPermissions
 import com.batr.receiveOrRespond
@@ -39,7 +40,7 @@ fun Application.configureUserManagement() {
                     val status = UserService.update(
                         user.id,
                         newName = userUpdate.name,
-                        newEmail = userUpdate.password,
+                        newPassword = userUpdate.password,
                     )
                     if (status) {
                         call.respond(HttpStatusCode.Companion.NoContent)
@@ -53,7 +54,7 @@ fun Application.configureUserManagement() {
             }
 
             setPermissions(UserPermissions(admin = true)) {
-                route("/auth/manage") {
+                route("/auth/manage/user") {
 
                     get {
                         val users = UserService.getAll().map { it.toNoPass() }
@@ -83,69 +84,84 @@ fun Application.configureUserManagement() {
                         }
 
                     }
-
-                    put("/{id}") {
-                        val id = call.parameters["id"]?.toIntOrNull()
-                        if (id == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
-                            return@put
-                        }
-                        val userUpdate = call.receiveOrRespond<UserUpdate>() ?: return@put
-                        if (UserService.getById(id)?.isRoot() == true || userUpdate.root == true) {
-                            if (call.getSession()?.isRoot() != true) {
-                                call.respond(HttpStatusCode.Forbidden)
+                    route("/{id}") {
+                        put {
+                            val id = call.parameters["id"]?.toIntOrNull()
+                            if (id == null) {
+                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
                                 return@put
                             }
-                        }
-                        val status = UserService.update(
-                            id,
-                            userUpdate.name,
-                            userUpdate.email,
-                            userUpdate.password,
-                            userUpdate.root,
-                            userUpdate.permissions,
-                        )
-                        if (status) {
-                            call.respond(HttpStatusCode.Companion.NoContent)
-                        } else {
-                            call.respond(
-                                HttpStatusCode.Companion.NotFound,
-                                "can't update user, invalid id or email already exists"
+                            val userUpdate = call.receiveOrRespond<UserUpdate>() ?: return@put
+                            if (UserService.getById(id)?.isRoot() == true || userUpdate.root == true) {
+                                if (call.getSession()?.isRoot() != true) {
+                                    call.respond(HttpStatusCode.Forbidden)
+                                    return@put
+                                }
+                            }
+                            val status = UserService.update(
+                                id,
+                                userUpdate.name,
+                                userUpdate.email,
+                                userUpdate.password,
+                                userUpdate.root,
+                                userUpdate.permissions,
                             )
-                        }
-                    }
-
-                    delete("/{id}") {
-                        val id = call.parameters["id"]?.toIntOrNull()
-                        if (id == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
-                            return@delete
-                        }
-                        if (UserService.getById(id)?.isRoot() == true) {
-                            if (call.getSession()?.isRoot() != true) {
-                                call.respond(HttpStatusCode.Forbidden)
-                                return@delete
+                            if (status) {
+                                call.respond(HttpStatusCode.Companion.NoContent)
+                            } else {
+                                call.respond(
+                                    HttpStatusCode.Companion.NotFound,
+                                    "can't update user, invalid id or email already exists"
+                                )
                             }
                         }
-                        if (UserService.delete(id)) {
-                            call.respond(HttpStatusCode.Companion.NoContent)
-                        } else {
-                            call.respond(HttpStatusCode.Companion.NotFound)
-                        }
-                    }
 
-                    get("/{id}") {
-                        val id = call.parameters["id"]?.toIntOrNull()
-                        if (id == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
-                            return@get
+                        delete {
+                            val id = call.parameters["id"]?.toIntOrNull()
+                            if (id == null) {
+                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                                return@delete
+                            }
+                            if (UserService.getById(id)?.isRoot() == true) {
+                                if (call.getSession()?.isRoot() != true) {
+                                    call.respond(HttpStatusCode.Forbidden)
+                                    return@delete
+                                }
+                            }
+                            if (UserService.delete(id)) {
+                                call.respond(HttpStatusCode.Companion.NoContent)
+                            } else {
+                                call.respond(HttpStatusCode.Companion.NotFound)
+                            }
                         }
-                        val user = UserService.getById(id)?.toNoPass()
-                        if (user == null) {
-                            call.respond(HttpStatusCode.Companion.NotFound)
-                            return@get
+
+                        get {
+                            val id = call.parameters["id"]?.toIntOrNull()
+                            if (id == null) {
+                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                                return@get
+                            }
+                            val user = UserService.getById(id)?.toNoPass()
+                            if (user == null) {
+                                call.respond(HttpStatusCode.Companion.NotFound)
+                                return@get
+                            }
+                            call.respond(user)
                         }
-                        call.respond(user)
+                        get("sessions") {
+                            val id = call.parameters["id"]?.toIntOrNull()
+                            if (id == null) {
+                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                                return@get
+                            }
+                            val user = UserService.getById(id)
+                            if (user == null) {
+                                call.respond(HttpStatusCode.Companion.NotFound)
+                                return@get
+                            }
+                            val sessions = user.getAllSessions()
+                            call.respond(sessions)
+                        }
                     }
 
                     get("/findByName/{name}") {
@@ -203,6 +219,7 @@ fun Application.configureUserManagement() {
                         }
                         call.respond(user)
                     }
+
                 }
             }
         }

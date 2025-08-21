@@ -14,7 +14,7 @@
         .logout-btn { background:#dc2626; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-weight:600; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:6px; }
         .logout-btn:hover { background:#b91c1c; }
         main { max-width:1400px; margin:24px auto 60px; padding:0 28px 40px; display:flex; flex-direction:column; gap:28px; }
-        .layout { display:grid; gap:28px; grid-template-columns:340px 1fr; align-items:start; }
+        .layout { display:grid; gap:28px; grid-template-columns:360px 1fr; align-items:start; }
         @media (max-width:1100px){ .layout { grid-template-columns:1fr; } }
         .panel { background:#fff; padding:20px 22px 26px; border-radius:18px; box-shadow:0 4px 18px rgba(0,0,0,.05); }
         h2 { margin:0 0 14px; font-size:1rem; }
@@ -32,12 +32,15 @@
         button:disabled { opacity:.5; cursor:not-allowed; }
         .perm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 12px; }
         .perm-item { font-size:.63rem; line-height:1.2; display:flex; gap:6px; background:#f1f5f9; padding:6px 8px; border-radius:8px; align-items:flex-start; }
+        .inline-field { display:flex; align-items:center; gap:8px; font-size:.7rem; }
+        .inline-field input { margin:0; }
         .actions-inline { display:flex; gap:10px; flex-wrap:wrap; }
         table { width:100%; border-collapse:collapse; background:#fff; border-radius:16px; overflow:hidden; }
         th, td { padding:9px 11px; font-size:.8rem; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; }
         th { background:#f1f5f9; font-weight:600; font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; }
         tbody tr:last-child td { border-bottom:none; }
         .badge { background:#2563eb; color:#fff; padding:2px 6px 3px; border-radius:999px; font-size:.58rem; display:inline-block; }
+        .badge-root { background:#9333ea; }
         .row-actions { display:flex; flex-wrap:wrap; gap:6px; }
         .truncate { max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
         .muted { color:#64748b; font-size:.65rem; letter-spacing:.04em; }
@@ -93,6 +96,13 @@
                     <input id="password" type="password" placeholder="Пароль (обязателен при создании)"/>
                 </label>
 
+                <div class="inline-field">
+                    <input type="checkbox" id="rootFlag">
+                    <label for="rootFlag" style="flex:none;text-transform:none;letter-spacing:0;font-size:.75rem;color:#1e293b;">
+                        root пользователь
+                    </label>
+                </div>
+
                 <div>
                     <div class="muted" style="margin-bottom:6px;">Права доступа</div>
                     <div class="perm-grid" id="permGrid"></div>
@@ -138,6 +148,7 @@
                         <th style="width:60px;">ID</th>
                         <th>Имя</th>
                         <th>Email</th>
+                        <th style="width:70px;">Root</th>
                         <th style="min-width:260px;">Права</th>
                         <th style="width:140px;"></th>
                     </tr>

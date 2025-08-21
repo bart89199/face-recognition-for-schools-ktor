@@ -1,6 +1,10 @@
 package com.batr.auth.session
 
 import com.batr.auth.getSession
+import com.batr.auth.setPermissions
+import com.batr.auth.user.UserPermissions
+import com.batr.auth.user.UserService
+import com.batr.auth.user.toNoPass
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -16,6 +20,10 @@ fun Application.configureSessionManagement() {
                     val session = call.getSession() ?: return@get
                     val sessions = session.getAllSessions().map { it.toRaw() }
                     call.respond(sessions)
+                }
+                get("/current") {
+                    val session = call.getSession()?.toRaw() ?: return@get
+                    call.respond(session)
                 }
                 delete {
                     val session = call.getSession() ?: return@delete
@@ -43,16 +51,49 @@ fun Application.configureSessionManagement() {
                     call.respond(HttpStatusCode.NoContent)
                 }
             }
+            setPermissions(UserPermissions(admin = true)) {
+                route("/auth/manage/session") {
+                    get {
+                        val sessions = SessionService.getAll().map { it.toRaw() }
+                        call.respond(sessions)
+                    }
+                    get("/{id}") {
+                        val id = call.parameters["id"]?.toIntOrNull()
+                        if (id == null) {
+                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                            return@get
+                        }
+                        val session = SessionService.getById(id)?.toRaw()
+                        if (session == null) {
+                            call.respond(HttpStatusCode.Companion.NotFound)
+                            return@get
+                        }
+                        call.respond(session)
+                    }
+                    delete("/{id}") {
+                        val id = call.parameters["id"]?.toIntOrNull()
+                        if (id == null) {
+                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                            return@delete
+                        }
+                        val status = SessionService.deleteById(id)
+                        if (!status) {
+                            call.respond(HttpStatusCode.Companion.NotFound)
+                            return@delete
+                        }
+                        call.respond(HttpStatusCode.NoContent)
+                    }
+                }
+            }
         }
     }
 }
 
 @Serializable
 data class RawSession(
-    val id: Int,
     val expiresAt: Long,
     val requestData: RequestData,
     val googleLogin: Boolean,
 )
 
-fun UserSession.toRaw() = RawSession(id, expiresAt, requestData, googleAccess != null)
+fun UserSession.toRaw() = RawSession(expiresAt, requestData, googleAccess != null)
