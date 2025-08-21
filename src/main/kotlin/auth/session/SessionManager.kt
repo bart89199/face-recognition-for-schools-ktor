@@ -91,9 +91,10 @@ fun Application.configureSessionManagement() {
 
 @Serializable
 data class RawSession(
+    val id: Int,
     val expiresAt: Long,
     val requestData: RequestData,
     val googleLogin: Boolean,
 )
 
-fun UserSession.toRaw() = RawSession(expiresAt, requestData, googleAccess != null)
+fun UserSession.toRaw() = RawSession(id, expiresAt, requestData, googleAccess != null)
