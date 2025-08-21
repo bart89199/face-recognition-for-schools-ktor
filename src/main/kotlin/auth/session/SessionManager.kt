@@ -17,6 +17,11 @@ fun Application.configureSessionManagement() {
                     val sessions = session.getAllSessions().map { it.toRaw() }
                     call.respond(sessions)
                 }
+                get("/current") {
+                    val session = call.getSession() ?: return@get
+                    val currentSession = session.toRaw()
+                    call.respond(currentSession)
+                }
                 delete {
                     val session = call.getSession() ?: return@delete
                     SessionService.removeAllUserSessions(session.userId)

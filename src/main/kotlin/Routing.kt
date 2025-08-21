@@ -33,6 +33,8 @@ fun Application.configureRouting() {
                 react("react-app")
             }
 
+            staticResources("/profile", "profile")
+
             setPermissions(UserPermissions(admin = true)) {
                 staticResources("/admin", "admin")
             }

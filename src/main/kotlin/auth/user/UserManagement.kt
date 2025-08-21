@@ -39,7 +39,8 @@ fun Application.configureUserManagement() {
                     val status = UserService.update(
                         user.id,
                         newName = userUpdate.name,
-                        newEmail = userUpdate.password,
+                        newEmail = userUpdate.email,
+                        newPassword = userUpdate.password,
                     )
                     if (status) {
                         call.respond(HttpStatusCode.Companion.NoContent)
