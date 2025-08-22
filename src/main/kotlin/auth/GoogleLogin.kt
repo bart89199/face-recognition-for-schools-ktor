@@ -17,9 +17,10 @@ import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
+import kotlinx.serialization.Serializable
 import java.util.concurrent.ConcurrentHashMap
 
-private val redirects = ConcurrentHashMap<String, String>()
+private val oauthLoginParams = ConcurrentHashMap<String, LoginParams>()
 
 fun AuthenticationConfig.configureGoogleOauthPlugin(application: Application) {
 
@@ -38,9 +39,9 @@ fun AuthenticationConfig.configureGoogleOauthPlugin(application: Application) {
                 defaultScopes = listOf("openid", "email", "profile"),
                 extraAuthParameters = listOf("access_type" to "offline"),
                 onStateCreated = { call, state ->
-                    call.request.queryParameters["redirectUrl"]?.let {
-                        redirects[state] = it
-                    }
+                    val redirectUrl = call.request.queryParameters["redirectUrl"]
+                    val longLogin = call.request.queryParameters["longLogin"].toBoolean()
+                    oauthLoginParams[state] = LoginParams(redirectUrl, longLogin)
                 }
             )
         }
@@ -59,7 +60,6 @@ fun Application.configureGoogleOauthRooting() {
                 currentPrincipal?.let { principal ->
                     principal.state?.let { state ->
                         call.sessions.get<CookieUserSession>()?.delete()
-
                         val userInfo = fetchUserInfo(principal.accessToken)
                         val user = UserService.getByEmail(userInfo.email)
                         if (user == null) {
@@ -72,10 +72,18 @@ fun Application.configureGoogleOauthRooting() {
                             principal.expiresIn + System.currentTimeMillis(),
                             principal.refreshToken
                         )
-                        val newSession = SessionService.create(user.id, requestData = call.getRequestData(), googleAccess = googleAccess)
+
+                        val (redirectUrl, longLogin) = oauthLoginParams[state] ?: LoginParams()
+
+                        val newSession = SessionService.create(
+                            user.id,
+                            longLogin = longLogin,
+                            requestData = call.getRequestData(),
+                            googleAccess = googleAccess
+                        )
                         call.sessions.set(CookieUserSession(newSession.token))
 
-                        redirects[state]?.let { redirect ->
+                        redirectUrl?.let { redirect ->
                             call.respondRedirect(redirect)
                             return@get
                         }
@@ -92,3 +100,10 @@ private suspend fun fetchUserInfo(accessToken: String, httpClient: HttpClient = 
     httpClient.get("https://openidconnect.googleapis.com/v1/userinfo") {
         header(HttpHeaders.Authorization, "Bearer $accessToken")
     }.body()
+
+
+@Serializable
+private data class LoginParams(
+    val redirectUrl: String? = null,
+    val longLogin: Boolean = false,
+)

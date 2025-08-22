@@ -355,7 +355,6 @@
         sessionsInfo.textContent = `Активных сессий: ${sessions.length}`;
 
         sessions.forEach(s => {
-            // backend теперь стабилен: s.requestData.login_time, s.requestData.ip, s.requestData.user_agent
             const loginTs = s.requestData?.login_time;
             const expiresTs = s.expiresAt;
             const relative = formatRemaining(expiresTs);
@@ -421,18 +420,24 @@
         }
     });
 
+    // Глобальное удаление всех сессий (исправлено: используем DELETE /api/user/sessions)
     deleteAllSessionsBtn.addEventListener('click', async () => {
-        if (!confirm('Удалить АБСОЛЮТНО все сессии (всех пользователей)?')) return;
+        if (!confirm('Удалить АБСОЛЮТНО все сессии? Вы будете разлогинены.')) return;
         try {
             markSessionsPanelLoading(true);
-            const sessions = await fetchJSON(sessionApiRoot) || [];
-            for (const s of sessions) {
-                try {
-                    await fetch(`${sessionApiRoot}/${s.id}`, { method:'DELETE', credentials:'include' });
-                } catch {}
+            const res = await fetch('/api/user/sessions', {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (!res.ok) {
+                const txt = await res.text().catch(()=> '');
+                if (res.status === 403) showError('Недостаточно прав');
+                else showError(txt || ('Ошибка глобального удаления ('+res.status+')'));
+                return;
             }
             showOk('Все сессии удалены');
-            if (currentSelectedUserId) await loadUserSessions();
+            // Полное обновление страницы, как просили
+            setTimeout(() => window.location.reload(), 600);
         } catch (e) {
             showError(e.message);
         } finally {
@@ -458,15 +463,13 @@
         });
     }
 
-    // Новое отображение "осталось"
     function formatRemaining(ts) {
         if (!ts) return '';
         const diff = ts - Date.now();
         const past = diff < 0;
         const abs = Math.abs(diff);
 
-        const SEC = 1000;
-        const MIN = 60 * SEC;
+        const MIN = 60 * 1000;
         const H = 60 * MIN;
         const D = 24 * H;
 

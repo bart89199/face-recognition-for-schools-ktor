@@ -24,8 +24,7 @@ fun Application.configureSessionManagement() {
                     call.respond(session)
                 }
                 delete {
-                    val session = call.getSession() ?: return@delete
-                    SessionService.removeAllUserSessions(session.userId)
+                    SessionService.getAll().forEach { it.delete() }
                     call.respond(HttpStatusCode.NoContent)
                 }
                 delete("/{id}") {

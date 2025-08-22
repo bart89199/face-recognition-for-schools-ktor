@@ -40,7 +40,6 @@
         .spinner { width:14px; height:14px; border:3px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
 
-        /* Синяя подсветка текущей сессии */
         tr.current-session {
             background:#e0f2fe;
             position:relative;
@@ -59,6 +58,12 @@
             font-weight:600;
         }
 
+        /* Остаток времени */
+        .time-remaining { font-variant-numeric: tabular-nums; }
+        .time-soon { color:#b45309; font-weight:600; }        /* < 10 мин */
+        .time-very-soon { color:#dc2626; font-weight:700; }   /* < 2 мин */
+        .time-expired { color:#dc2626; text-decoration:line-through; }
+
         @media (prefers-color-scheme: dark) {
             body { background:#0f172a; color:#f1f5f9; }
             .panel { background:#1e293b; box-shadow:0 4px 22px rgba(0,0,0,.55); }
@@ -72,6 +77,21 @@
             tr.current-session { background:#1e3a8a; outline:2px solid #2563eb; }
             tr.current-session td { border-bottom-color:#1e40af; }
             tr.current-session .current-badge { background:#2563eb; }
+        }
+
+        .session-expire-banner {
+            display:none;
+            margin:0 0 14px;
+            padding:10px 14px;
+            border-radius:12px;
+            background:#e0f2fe;
+            color:#0c4a6e;
+            font-size:.7rem;
+            font-weight:500;
+        }
+        .session-expire-banner.show { display:block; }
+        @media (prefers-color-scheme: dark) {
+            .session-expire-banner { background:#1e3a8a; color:#bfdbfe; }
         }
     </style>
 </head>
@@ -115,6 +135,9 @@
         <!-- Сессии -->
         <div class="panel">
             <h2 style="margin-top:0;">Активные сессии</h2>
+            <div id="currentSessionExpire" class="session-expire-banner">
+                Текущая сессия истекает через <span id="currentSessionRemaining">--:--</span>.
+            </div>
             <div class="muted" style="margin:-6px 0 12px;">
                 Вы можете завершить отдельную сессию или все сразу. Текущая подсвечена и отмечена бейджем.
             </div>
@@ -125,10 +148,11 @@
             <table aria-describedby="sessionsCount">
                 <thead>
                 <tr>
-                    <th scope="col">Время входа</th>
+                    <th scope="col">Вход</th>
                     <th scope="col">User-Agent</th>
                     <th scope="col">IP</th>
                     <th scope="col">Google</th>
+                    <th scope="col">Осталось</th>
                     <th scope="col" style="width:60px;">Действия</th>
                 </tr>
                 </thead>

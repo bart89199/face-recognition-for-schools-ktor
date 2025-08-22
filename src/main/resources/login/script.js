@@ -25,6 +25,7 @@
     const errorBox = document.getElementById('error');
     const submitBtn = document.getElementById('submitBtn');
     const googleBtn = document.getElementById('googleBtn');
+    const longLoginCheckbox = document.getElementById('longLogin');
 
     function showError(msg) {
         errorBox.textContent = msg;
@@ -58,7 +59,7 @@
         if (safeRedirectParam) {
             const g = new URL(base, window.location.origin);
             g.searchParams.set('redirectUrl', safeRedirectParam);
-            return g.pathname + g.search; // относительный
+            return g.pathname + g.search;
         }
         return base;
     }
@@ -75,6 +76,7 @@
 
         const email = form.email.value.trim();
         const password = form.password.value;
+        const long_login = !!longLoginCheckbox.checked;
 
         if (!email || !password) {
             showError('Заполните email и пароль.');
@@ -88,7 +90,7 @@
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email, password, long_login }),
                 credentials: 'include'
             });
 
