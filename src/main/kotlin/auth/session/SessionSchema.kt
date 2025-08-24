@@ -23,6 +23,7 @@ data class RequestData(
 @Serializable
 data class UserSession(
     val id: Int,
+    val active: Boolean,
     @SerialName("user_id") val userId: Int,
     val token: String,
     @SerialName("expires_at") val expiresAt: Long,
@@ -37,6 +38,7 @@ data class CookieUserSession(
 
 object SessionTable : IntIdTable() {
     val userId = integer("user_id")
+    val active = bool("active")
     val token = varchar("token", 300).uniqueIndex()
     val expiresAt = long("expires_at")
     val requestData = json<RequestData>("request_data", Json.Default)

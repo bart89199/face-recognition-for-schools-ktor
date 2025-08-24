@@ -7,7 +7,6 @@ import com.batr.database.Database.suspendTransaction
 import io.ktor.server.application.*
 import io.ktor.server.config.*
 import io.ktor.server.plugins.origin
-import kotlinx.coroutines.runBlocking
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -18,20 +17,18 @@ object SessionService {
     var longTokenLifeTimeMs by Delegates.notNull<Long>()
         private set
 
-    fun load(application: Application) {
+    fun load(application: Application): Unit {
         tokenLifeTimeMs = application.environment.config.property("auth.token-life-time-ms").getAs()
         longTokenLifeTimeMs = application.environment.config.property("auth.long-token-life-time-ms").getAs()
         transaction {
             SchemaUtils.create(SessionTable)
         }
-        runBlocking {
-            getAll().forEach { it.check() }
-        }
     }
 
-    private fun Query.toModel() = map {
+    private fun Query.toModel(): List<UserSession> = map {
         UserSession(
             it[SessionTable.id].value,
+            it[SessionTable.active],
             it[SessionTable.userId],
             it[SessionTable.token],
             it[SessionTable.expiresAt],
@@ -45,18 +42,19 @@ object SessionService {
         requestData: RequestData,
         expiresIn: Long = tokenLifeTimeMs,
         googleAccess: GoogleAccess? = null
-    ) =
+    ): UserSession =
         suspendTransaction {
             val expiresAt = expiresIn + System.currentTimeMillis()
             val token = TokenGenerator.generateSessionToken()
             val id = SessionTable.insert {
                 it[SessionTable.userId] = userId
+                it[SessionTable.active] = true
                 it[SessionTable.token] = token
                 it[SessionTable.expiresAt] = expiresAt
                 it[SessionTable.requestData] = requestData
                 it[SessionTable.googleAccess] = googleAccess
             }[SessionTable.id].value
-            UserSession(id, userId, token, expiresAt, requestData, googleAccess)
+            UserSession(id, true, userId, token, expiresAt, requestData, googleAccess)
         }
 
     suspend fun create(
@@ -64,70 +62,95 @@ object SessionService {
         requestData: RequestData,
         longLogin: Boolean,
         googleAccess: GoogleAccess? = null
-    ) = create(
+    ): UserSession = create(
         userId,
         requestData,
         if (longLogin) longTokenLifeTimeMs else tokenLifeTimeMs,
         googleAccess
     )
 
-    suspend fun getAll() = suspendTransaction {
-        SessionTable.selectAll().toModel()
-    }
+    private fun active(active: Boolean?): Op<Boolean> =
+        if (active != null) SessionTable.active eq active else Op.TRUE
 
-    suspend fun getById(id: Int) = suspendTransaction {
+    private fun Iterable<UserSession>.active(active: Boolean?): List<UserSession> =
+        filter { if (active != null) it.active == active else true }
+
+    suspend fun getAll(active: Boolean?): List<UserSession> = suspendTransaction {
+        SessionTable.selectAll().where { active(active) }.toModel()
+    }.update().active(active)
+
+    suspend fun getById(id: Int): UserSession? = suspendTransaction {
         SessionTable.selectAll().where { SessionTable.id eq id }.toModel().firstOrNull()
-    }
+    }?.update()
 
-    suspend fun getByToken(token: String) = suspendTransaction {
+    suspend fun getByToken(token: String): UserSession? = suspendTransaction {
         SessionTable.selectAll().where { SessionTable.token eq token }.toModel().firstOrNull()
+    }?.update()
+
+    suspend fun getUserSessions(id: Int, active: Boolean?): List<UserSession> = suspendTransaction {
+        SessionTable.selectAll().where((SessionTable.userId eq id) and active(active)).toModel()
+    }.update().active(active)
+
+    suspend fun deleteById(id: Int): Boolean = suspendTransaction {
+        SessionTable.update({ SessionTable.id eq id }) {
+            it[SessionTable.active] = false
+        } == 1
     }
 
-    suspend fun deleteById(id: Int) = suspendTransaction {
-        SessionTable.deleteWhere { SessionTable.id eq id } == 1
+    suspend fun deleteAll(): Int = suspendTransaction {
+        SessionTable.update({ SessionTable.active eq true }) {
+            it[SessionTable.active] = false
+        }
     }
 
-    suspend fun deleteByToken(token: String) = suspendTransaction {
-        SessionTable.deleteWhere { SessionTable.token eq token } == 1
+    suspend fun deleteByUserId(userId: Int): Int = suspendTransaction {
+        SessionTable.update({ (SessionTable.userId eq userId) and (SessionTable.active eq true) }) {
+            it[SessionTable.active] = false
+        }
     }
 
-    suspend fun removeAllUserSessions(id: Int) = suspendTransaction {
-        SessionTable.deleteWhere { SessionTable.userId eq id }
+    suspend fun deleteByToken(token: String): Boolean = suspendTransaction {
+        SessionTable.update({ SessionTable.token eq token }) {
+            it[SessionTable.active] = false
+        } == 1
     }
 
-    suspend fun getUserSessions(id: Int) = suspendTransaction {
-        SessionTable.selectAll().where(SessionTable.userId eq id).toModel()
-    }
 }
 
-suspend fun UserSession.delete() = SessionService.deleteByToken(token)
+suspend fun UserSession.delete(): Boolean = SessionService.deleteByToken(token)
 
-suspend fun CookieUserSession.getSession() = SessionService.getByToken(token)
+suspend fun CookieUserSession.getSession(): UserSession? = SessionService.getByToken(token)
 
-suspend fun UserSession.getUserOrNull() = UserService.getById(userId)
+suspend fun UserSession.getUserOrNull(): User? = UserService.getById(userId)
 
-suspend fun UserSession.getUser() = getUserOrNull() ?: throw IllegalArgumentException("session user does not exist")
+suspend fun UserSession.getUser(): User = getUserOrNull() ?: throw IllegalArgumentException("session user does not exist")
 
-suspend fun CookieUserSession.delete() = SessionService.deleteByToken(token)
+suspend fun CookieUserSession.delete(): Boolean = SessionService.deleteByToken(token)
 
-suspend fun UserSession?.check(): Boolean {
-    if (this == null) return false
+suspend fun UserSession.check(autoUpdate: Boolean = true): Boolean {
+    if (autoUpdate) return update().active
+    return this.active
+}
+
+suspend fun UserSession.update(): UserSession {
+    if (!this.active) return this
     if (this.getUserOrNull() == null || this.expiresAt < System.currentTimeMillis()) {
-        this.delete()
-        return false
+        delete()
+        return copy(active = false)
     }
-    return true
+    return this
 }
 
-suspend fun CookieUserSession?.check() = this?.getSession()?.check() != null
+suspend fun Iterable<UserSession>.update(): List<UserSession> = map { it.update() }
+suspend fun CookieUserSession.check(): Boolean = this.getSession()?.check() == true
 
-suspend fun User.removeAllSessions() = SessionService.removeAllUserSessions(id)
+suspend fun User.removeAllSessions(): Int = SessionService.deleteByUserId(id)
 
-suspend fun UserSession.removeAllSessions() = SessionService.removeAllUserSessions(userId)
+suspend fun UserSession.removeAllUserSessions(): Int = SessionService.deleteByUserId(userId)
 
-suspend fun User.getAllSessions() = SessionService.getUserSessions(id)
+suspend fun User.getAllSessions(active: Boolean?): List<UserSession> = SessionService.getUserSessions(id, active)
 
-suspend fun UserSession.getAllSessions() = SessionService.getUserSessions(userId)
+suspend fun UserSession.getAllUserSessions(active: Boolean?): List<UserSession> = SessionService.getUserSessions(userId, active)
 
-fun ApplicationCall.getRequestData() =
+fun ApplicationCall.getRequestData(): RequestData =
     RequestData(System.currentTimeMillis(), request.origin.remoteAddress, request.headers["User-Agent"])

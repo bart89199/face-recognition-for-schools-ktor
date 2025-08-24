@@ -28,7 +28,7 @@ val PermissionPlugin = createRouteScopedPlugin("PermissionPlugin", ::RequirePerm
     onCall { call ->
         val session = call.getSession(noSessionRedirect)
         val user = session?.getUserOrNull()
-        val granted = user?.permissions?.check(need) == true
+        val granted = (user?.permissions?.check(need) == true) or (user?.root == true)
         if (!granted) {
             deniedHandler(call)
         }

@@ -2,10 +2,7 @@ package com.batr.auth.user
 
 
 import com.batr.auth.getSession
-import com.batr.auth.session.delete
-import com.batr.auth.session.getAllSessions
 import com.batr.auth.session.getUser
-import com.batr.auth.session.toRaw
 import com.batr.auth.setPermissions
 import com.batr.receiveOrRespond
 import io.ktor.http.*
@@ -38,14 +35,17 @@ fun Application.configureUserManagement() {
                     val session = call.getSession() ?: return@put
                     val user = session.getUser().toNoPass()
                     val userUpdate = call.receiveOrRespond<UserUpdate>() ?: return@put
-
+                    if (userUpdate.password?.isBlank() == false) {
+                        call.respond(HttpStatusCode.BadRequest, "password is required")
+                        return@put
+                    }
                     val status = UserService.update(
                         user.id,
                         newName = userUpdate.name,
                         newPassword = userUpdate.password,
                     )
                     if (status) {
-                        call.respond(HttpStatusCode.Companion.NoContent)
+                        call.respond(HttpStatusCode.Companion.OK)
                     } else {
                         call.respond(
                             HttpStatusCode.Companion.BadRequest,
@@ -77,7 +77,7 @@ fun Application.configureUserManagement() {
                         }
                         val id = UserService.createUser(newUser)
                         if (id != -1) {
-                            call.respond(HttpStatusCode.Companion.OK, id)
+                            call.respond(HttpStatusCode.OK, id)
                         } else {
                             call.respond(
                                 HttpStatusCode.Companion.BadRequest,
@@ -109,7 +109,7 @@ fun Application.configureUserManagement() {
                                 userUpdate.permissions,
                             )
                             if (status) {
-                                call.respond(HttpStatusCode.Companion.NoContent)
+                                call.respond(HttpStatusCode.Companion.OK)
                             } else {
                                 call.respond(
                                     HttpStatusCode.Companion.NotFound,
@@ -131,7 +131,7 @@ fun Application.configureUserManagement() {
                                 }
                             }
                             if (UserService.delete(id)) {
-                                call.respond(HttpStatusCode.Companion.NoContent)
+                                call.respond(HttpStatusCode.Companion.OK)
                             } else {
                                 call.respond(HttpStatusCode.Companion.NotFound)
                             }
@@ -149,32 +149,6 @@ fun Application.configureUserManagement() {
                                 return@get
                             }
                             call.respond(user)
-                        }
-                        get("sessions") {
-                            val id = call.parameters["id"]?.toIntOrNull()
-                            if (id == null) {
-                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
-                                return@get
-                            }
-                            val user = UserService.getById(id)
-                            if (user == null) {
-                                call.respond(HttpStatusCode.Companion.NotFound)
-                                return@get
-                            }
-                            val sessions = user.getAllSessions().map {it.toRaw()}
-                            call.respond(sessions)
-                        }
-                        delete("sessions") {
-                            val id = call.parameters["id"]?.toIntOrNull()
-                            if (id == null) {
-                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
-                                return@delete
-                            }
-                            val user = UserService.getById(id) ?: return@delete
-                            user.getAllSessions().forEach {
-                                it.delete()
-                            }
-                            call.respond(HttpStatusCode.NoContent)
                         }
                     }
 

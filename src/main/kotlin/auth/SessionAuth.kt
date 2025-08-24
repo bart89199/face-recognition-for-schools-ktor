@@ -19,7 +19,7 @@ fun AuthenticationConfig.configureSessionAuthPlugin() {
     session<CookieUserSession>("session-auth") {
         validate { token ->
             val session = token.getSession()
-            if (!session.check()) {
+            if (session?.check() != true) {
                 return@validate null
             }
             return@validate UserIdPrincipal(session!!.userId.toString())

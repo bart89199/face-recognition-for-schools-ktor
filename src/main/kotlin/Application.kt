@@ -2,6 +2,8 @@ package com.batr
 
 import com.batr.auth.configureAuth
 import com.batr.database.Database.configureDatabase
+import com.batr.log.LogService
+import com.batr.log.LogService.configureLogManagers
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.serialization.kotlinx.json.*
@@ -22,11 +24,14 @@ val applicationHttpClient = HttpClient(CIO) {
 fun Application.module() {
     configureDatabase()
     configureAuth()
+    LogService.load()
 
     configureSerialization()
     configureSockets()
     configureRouting()
     configureAccess()
+
+    configureLogManagers()
 
 //    UserService.getAll().forEach { user ->
 //        val permissions = user.permissions

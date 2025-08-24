@@ -49,7 +49,7 @@ fun Application.configureLoginRouting() {
 private val AlreadyLoginPlugin = createRouteScopedPlugin("AlreadyLoginPlugin") {
     onCall { call ->
         val session = call.getSession(false)
-        if (session.check()) {
+        if (session?.check() == true) {
             call.respondRedirect(call.request.queryParameters["redirectUrl"] ?: HOME_PATH)
         }
     }

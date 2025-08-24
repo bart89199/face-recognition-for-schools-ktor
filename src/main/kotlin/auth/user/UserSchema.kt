@@ -72,5 +72,6 @@ data class RawUser(
     val permissions: UserPermissions = DEFAULT_PERMISSIONS,
 )
 
-fun User.toRaw() = RawUser(name, email, password, root, permissions)
-fun User.toNoPass() = UserNoPass(id, name, email, root, permissions)
+fun User.toRaw() = RawUser(name = name, email = email, password = password, root = root, permissions = permissions)
+
+fun User.toNoPass() = UserNoPass(id = id, name = name, email = email, root = root, permissions = permissions)

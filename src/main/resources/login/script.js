@@ -54,14 +54,16 @@
         }
     }
 
+    // Добавляем longLogin=true если выбран чекбокс
     function buildGoogleUrl() {
-        let base = '/login/google';
+        const g = new URL('/login/google', window.location.origin);
         if (safeRedirectParam) {
-            const g = new URL(base, window.location.origin);
             g.searchParams.set('redirectUrl', safeRedirectParam);
-            return g.pathname + g.search;
         }
-        return base;
+        if (longLoginCheckbox.checked) {
+            g.searchParams.set('longLogin', 'true');
+        }
+        return g.pathname + g.search;
     }
 
     function goGoogle() {

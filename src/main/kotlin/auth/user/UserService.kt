@@ -21,7 +21,7 @@ object UserService {
     }
 
 
-    suspend fun createUser(rawUser: RawUser, hashPassword: Boolean = true) = suspendTransaction {
+    suspend fun createUser(rawUser: RawUser, hashPassword: Boolean = true): Int = suspendTransaction {
         val password = if (hashPassword) PasswordHasher.hash(rawUser.password).result else rawUser.password
         try {
             UserTable.insert {
@@ -36,31 +36,31 @@ object UserService {
         }
     }
 
-    suspend fun getAll() = suspendTransaction {
+    suspend fun getAll(): List<User> = suspendTransaction {
         UserTable.selectAll().toModel()
     }
 
-    suspend fun getById(id: Int) = suspendTransaction {
+    suspend fun getById(id: Int): User? = suspendTransaction {
         UserTable.selectAll().where { UserTable.id eq id }.toModel().firstOrNull()
     }
 
-    suspend fun getByEmail(email: String) = suspendTransaction {
+    suspend fun getByEmail(email: String): User? = suspendTransaction {
         UserTable.selectAll().where { UserTable.email eq email }.toModel().firstOrNull()
     }
 
-    suspend fun getByName(name: String) = suspendTransaction {
+    suspend fun getByName(name: String): List<User> = suspendTransaction {
         UserTable.selectAll().where { UserTable.name eq name }.toModel()
     }
 
-    suspend fun findLikeEmail(email: String) = suspendTransaction {
+    suspend fun findLikeEmail(email: String): List<User> = suspendTransaction {
         UserTable.selectAll().where { UserTable.email like "%$email%" }.toModel()
     }
 
-    suspend fun findLikeName(name: String) = suspendTransaction {
+    suspend fun findLikeName(name: String): List<User> = suspendTransaction {
         UserTable.selectAll().where { UserTable.name like "%$name%" }.toModel()
     }
 
-    suspend fun delete(id: Int) = suspendTransaction {
+    suspend fun delete(id: Int): Boolean = suspendTransaction {
         UserTable.deleteWhere { UserTable.id eq id } == 1
     }
 
@@ -82,7 +82,7 @@ object UserService {
         newRoot: Boolean? = null,
         newPermissions: UserPermissions? = null,
         hashNewPassword: Boolean = true
-    ) = suspendTransaction {
+    ): Boolean = suspendTransaction {
         UserTable.update({ UserTable.id eq id }) { user ->
             newName?.let { user[UserTable.name] = it }
             newEmail?.let { user[UserTable.email] = it }
@@ -94,20 +94,24 @@ object UserService {
         } == 1
     }
 
-    private fun Query.toModel() = map {
+    private fun Query.toModel(): List<User> = map {
         User(
-            it[UserTable.id].value,
-            it[UserTable.name],
-            it[UserTable.email],
-            it[UserTable.password],
-            it[UserTable.root],
-            it[UserTable.permissions]
+            id = it[UserTable.id].value,
+            name = it[UserTable.name],
+            email = it[UserTable.email],
+            password = it[UserTable.password],
+            root = it[UserTable.root],
+            permissions = it[UserTable.permissions]
         )
     }
 }
 
-suspend fun User.newSession(requestData: RequestData, longLogin: Boolean = false, googleAccess: GoogleAccess? = null) = SessionService.create(id, longLogin = longLogin, requestData = requestData, googleAccess = googleAccess)
-suspend fun User.newSession(call: ApplicationCall, longLogin: Boolean = false, googleAccess: GoogleAccess? = null) = SessionService.create(id, longLogin = longLogin, requestData = call.getRequestData(), googleAccess = googleAccess)
+suspend fun User.newSession(requestData: RequestData, longLogin: Boolean = false, googleAccess: GoogleAccess? = null): UserSession =
+    SessionService.create(id, longLogin = longLogin, requestData = requestData, googleAccess = googleAccess)
+
+suspend fun User.newSession(call: ApplicationCall, longLogin: Boolean = false, googleAccess: GoogleAccess? = null): UserSession =
+    SessionService.create(id, longLogin = longLogin, requestData = call.getRequestData(), googleAccess = googleAccess)
+
 suspend fun User.isRootOrNull(): Boolean? = UserService.checkIsRoot(id)
 suspend fun User.isRoot(): Boolean = isRootOrNull() ?: throw IllegalStateException("Can`t find user")
-suspend fun UserSession.isRoot() = UserService.checkIsRoot(userId)
+suspend fun UserSession.isRoot(): Boolean? = UserService.checkIsRoot(userId)

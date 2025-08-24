@@ -420,12 +420,12 @@
         }
     });
 
-    // Глобальное удаление всех сессий (исправлено: используем DELETE /api/user/sessions)
+    // Глобальное удаление всех сессий (исправлено: используем DELETE /auth/manage/session)
     deleteAllSessionsBtn.addEventListener('click', async () => {
         if (!confirm('Удалить АБСОЛЮТНО все сессии? Вы будете разлогинены.')) return;
         try {
             markSessionsPanelLoading(true);
-            const res = await fetch('/api/user/sessions', {
+            const res = await fetch('/auth/manage/session', {
                 method: 'DELETE',
                 credentials: 'include'
             });
