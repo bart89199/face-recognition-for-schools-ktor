@@ -45,3 +45,24 @@ If the server starts successfully, you'll see the following output:
 2024-12-04 14:32:45.682 [main] INFO  Application - Responding at http://0.0.0.0:8080
 ```
 
+## Set the environment variables
+
+Before running this sample, assign a client ID and client secret to the `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+environment variables:
+
+```shell
+# macOS/Linux
+export GOOGLE_CLIENT_ID=yourClientId
+export GOOGLE_CLIENT_SECRET=yourClientSecret
+   
+# Windows
+setx GOOGLE_CLIENT_ID yourClientId
+setx GOOGLE_CLIENT_SECRET yourClientSecret
+```
+
+You can verify that the environment variables have been correctly set, by using the `echo` command:
+
+```shell
+echo $GOOGLE_CLIENT_ID
+echo $GOOGLE_CLIENT_SECRET
+```

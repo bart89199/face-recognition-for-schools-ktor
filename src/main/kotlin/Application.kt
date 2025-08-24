@@ -1,35 +1,49 @@
 package com.batr
 
-import com.batr.pythonConnection.PythonConnection
+import com.batr.auth.configureAuth
+import com.batr.database.Database.configureDatabase
+import com.batr.log.LogService
+import com.batr.log.LogService.configureLogManagers
+import io.ktor.client.*
+import io.ktor.client.engine.cio.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.engine.EmbeddedServer
-import io.ktor.server.netty.EngineMain.createServer
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
-fun main(args: Array<String>) = runBlocking<Unit> {
+const val HOME_PATH = "/"
+const val LOGIN_PATH = "/login"
+fun main(args: Array<String>) {
+    io.ktor.server.netty.EngineMain.main(args)
+}
 
-
-    val server = createServer(args)
-
-
-//    server.monitor.subscribe(ApplicationStarted) {
-//        println("server started")
-//        PythonConnection.connect()
-//
-//    }
-
-
-    server.start(true)
-
-
+val applicationHttpClient = HttpClient(CIO) {
+    install(io.ktor.client.plugins.contentnegotiation.ContentNegotiation) {
+        json()
+    }
 }
 
 fun Application.module() {
+    configureDatabase()
+    configureAuth()
+    LogService.load()
+
     configureSerialization()
-//    configureDatabases()
     configureSockets()
     configureRouting()
+    configureAccess()
+
+    configureLogManagers()
+
+//    UserService.getAll().forEach { user ->
+//        val permissions = user.permissions
+//        if (permissions.manageUsers != null) {
+//            val newPermissions = permissions.copy(admin = permissions.manageUsers, manageUsers = null)
+//            UserService.update(user.id, newPermissions = newPermissions)
+//        }
+//    }
 
     configureStreaming()
+    configureDoor()
+    configureInfo()
+    configureSettings()
+    configureTest()
 }
