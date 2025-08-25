@@ -41,7 +41,11 @@ data class SystemLog(
     override val type: SystemLogType,
     override val time: Long,
     override val message: String
-) : LogModel<SystemLogType>()
+) : LogModel<SystemLogType>() {
+    override fun toString(): String {
+        return super.toString()
+    }
+}
 
 object SystemLogTable : LogTable<SystemLogType>(SystemLogType::class)
 

@@ -43,7 +43,11 @@ data class AdminLog(
     override val time: Long,
     override val message: String,
     val sessionId: Int
-) : LogModel<AdminLogType>()
+) : LogModel<AdminLogType>() {
+    override fun toString(): String {
+        return super.toString()
+    }
+}
 
 object AdminLogTable : LogTable<AdminLogType>(AdminLogType::class) {
     val sessionId = integer("session_id")

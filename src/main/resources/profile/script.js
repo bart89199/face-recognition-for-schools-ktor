@@ -1,4 +1,5 @@
-// script.js (панель профиля + управление сессиями + отображение оставшегося времени)
+// Улучшенная версия: фильтр по активности, корректные эндпоинты, обработка redirect / не-JSON ответов.
+// Исправлено: не добавляем пустой класс (classList.add('')).
 
 (() => {
     // ==== DOM ====
@@ -16,21 +17,20 @@
     const sessionsCount = document.getElementById('sessionsCount');
     const btnReloadSessions = document.getElementById('reloadSessions');
     const btnDeleteAllSessions = document.getElementById('deleteAllSessions');
+    const sessionsFilter = document.getElementById('sessionsFilter');
 
     const currentSessionExpireBanner = document.getElementById('currentSessionExpire');
     const currentSessionRemainingSpan = document.getElementById('currentSessionRemaining');
 
     // ==== STATE ====
     let originalProfile = null;
-    let loadingProfile = false;
     let savingProfile = false;
+
     let currentSessionId = null;
     let currentSessionExpiresAtMs = null;
-    let loadingSessions = false;
-    let countdownInterval = null;
 
-    // Keep raw sessions for countdown updates
-    let sessionsCache = [];
+    let countdownInterval = null;
+    let currentFilter = 'active';
 
     // ==== UTIL ====
     function showError(msg) {
@@ -49,30 +49,21 @@
         errBox.classList.remove('show');
         okBox.classList.remove('show');
     }
-    function isoToLocalString(ts) {
-        let date;
-        if (typeof ts === 'number') {
-            if (ts < 3_000_000_000) date = new Date(ts * 1000);
-            else date = new Date(ts);
-        } else {
-            date = new Date(ts);
-        }
-        if (isNaN(date.getTime())) return '-';
-        return date.toLocaleString();
-    }
-    function booleanText(v) {
-        return v ? 'Да' : 'Нет';
-    }
+
     function sanitize(text) {
         if (text == null) return '';
         return String(text).replace(/[&<>"']/g, ch => ({
             '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
         }[ch]));
     }
-    function disable(el, state) {
-        if (!el) return;
-        el.disabled = !!state;
+    function isoToLocalString(ts) {
+        if (ts == null) return '-';
+        const n = Number(ts);
+        const date = (n < 3_000_000_000) ? new Date(n * 1000) : new Date(n);
+        return isNaN(date.getTime()) ? '-' : date.toLocaleString();
     }
+    function booleanText(v) { return v ? 'Да' : 'Нет'; }
+    function disable(el, state) { if (el) el.disabled = !!state; }
 
     function withButtonSpinner(btn, fn) {
         const originalHTML = btn.innerHTML;
@@ -89,7 +80,6 @@
         if (epochMaybeSeconds < 3_000_000_000) return epochMaybeSeconds * 1000;
         return epochMaybeSeconds;
     }
-
     function formatDuration(ms) {
         if (ms <= 0) return '0с';
         const sec = Math.floor(ms / 1000);
@@ -102,38 +92,58 @@
         if (m > 0) return `${m}м ${s}с`;
         return `${s}с`;
     }
-
     function classifyRemaining(ms) {
         if (ms <= 0) return 'time-expired';
         if (ms <= 120_000) return 'time-very-soon';
         if (ms <= 600_000) return 'time-soon';
-        return '';
+        return ''; // пусто => не добавляем класс
+    }
+
+    function mapSessionEndpointByFilter(filter) {
+        switch (filter) {
+            case 'inactive': return '/api/user/sessions/not-active';
+            case 'all': return '/api/user/sessions/all';
+            case 'active':
+            default: return '/api/user/sessions';
+        }
+    }
+
+    function isJsonResponse(resp) {
+        const ct = (resp.headers.get('content-type') || '').toLowerCase();
+        return ct.includes('application/json');
+    }
+
+    function handlePossiblyRedirected(resp) {
+        if (resp.redirected && resp.url.includes('/login')) {
+            window.location = resp.url;
+            return true;
+        }
+        if (!isJsonResponse(resp)) {
+            const url = resp.url || '';
+            if (url.includes('/login')) {
+                window.location = url;
+                return true;
+            }
+            window.location.reload();
+            return true;
+        }
+        return false;
     }
 
     // ==== PROFILE ====
     async function loadProfile() {
-        if (loadingProfile) return;
-        loadingProfile = true;
         try {
-            const resp = await fetch('/api/user/profile', { method: 'GET' });
-            if (resp.status === 401) {
-                location.href = '/login';
-                return;
-            }
-            if (!resp.ok) {
-                showError('Не удалось загрузить профиль');
-                return;
-            }
+            const resp = await fetch('/api/user/profile');
+            if (resp.status === 401) { window.location='/login'; return; }
+            if (handlePossiblyRedirected(resp)) return;
+            if (!resp.ok) { showError('Не удалось загрузить профиль'); return; }
             const data = await resp.json();
             originalProfile = data;
             inputName.value = data.name || '';
             inputEmail.value = data.email || '';
             inputPassword.value = '';
-        } catch (e) {
-            console.error(e);
+        } catch {
             showError('Ошибка сети при загрузке профиля');
-        } finally {
-            loadingProfile = false;
         }
     }
 
@@ -142,26 +152,21 @@
         clearMessages();
         const name = inputName.value.trim();
         const password = inputPassword.value.trim();
-        if (!name) {
-            showError('Имя не может быть пустым');
-            return;
-        }
+        if (!name) { showError('Имя не может быть пустым'); return; }
+
         const payload = { name };
-        if (password.length > 0) payload.password = password;
+        if (password) payload.password = password;
 
         savingProfile = true;
         disable(btnSave, true);
-
         try {
             const resp = await fetch('/api/user/profile', {
                 method: 'PUT',
                 headers: { 'Content-Type':'application/json' },
                 body: JSON.stringify(payload)
             });
-            if (resp.status === 401) {
-                location.reload();
-                return;
-            }
+            if (resp.status === 401) { window.location.reload(); return; }
+            if (handlePossiblyRedirected(resp)) return;
             if (!resp.ok) {
                 const txt = await resp.text();
                 showError('Не удалось сохранить профиль: ' + (txt || resp.status));
@@ -169,9 +174,8 @@
             }
             showSuccess('Профиль сохранён');
             inputPassword.value = '';
-            originalProfile = { ...originalProfile, name };
-        } catch (e) {
-            console.error(e);
+            if (originalProfile) originalProfile.name = name;
+        } catch {
             showError('Ошибка сети при сохранении');
         } finally {
             savingProfile = false;
@@ -186,59 +190,56 @@
         inputPassword.value = '';
     }
 
-    // ==== SESSIONS ====
+    // ==== CURRENT SESSION ====
     async function loadCurrentSession() {
         try {
             const resp = await fetch('/api/user/sessions/current');
-            if (resp.status === 401) {
-                location.href = '/login';
-                return;
-            }
+            if (resp.status === 401) { window.location='/login'; return; }
+            if (handlePossiblyRedirected(resp)) return;
             if (!resp.ok) return;
             const data = await resp.json();
             if (data) {
-                if (typeof data.id !== 'undefined') currentSessionId = data.id;
-                currentSessionExpiresAtMs = toMs(data.expiresAt);
+                currentSessionId = data.id;
+                currentSessionExpiresAtMs = data.active ? toMs(data.expiresAt) : null;
             }
             updateCurrentSessionBanner();
-        } catch (e) {
-            console.warn('Не удалось получить текущую сессию', e);
+        } catch {
+            // игнор
         }
     }
 
+    // ==== SESSIONS ====
     async function loadSessions() {
-        if (loadingSessions) return;
-        loadingSessions = true;
+        const url = mapSessionEndpointByFilter(currentFilter);
         try {
-            const resp = await fetch('/api/user/sessions');
-            if (resp.status === 401) {
-                location.href = '/login';
-                return;
-            }
+            const resp = await fetch(url);
+            if (resp.status === 401) { window.location='/login'; return; }
+            if (handlePossiblyRedirected(resp)) return;
             if (!resp.ok) {
                 showError('Не удалось загрузить список сессий');
+                renderSessions([]);
                 return;
             }
             const list = await resp.json();
-            sessionsCache = Array.isArray(list) ? list : [];
-            renderSessions(sessionsCache);
-        } catch (e) {
-            console.error(e);
+            renderSessions(Array.isArray(list) ? list : []);
+        } catch {
             showError('Ошибка сети при загрузке сессий');
-        } finally {
-            loadingSessions = false;
+            renderSessions([]);
         }
     }
 
     function renderSessions(list) {
         sessionsBody.innerHTML = '';
-        if (!Array.isArray(list) || list.length === 0) {
-            sessionsBody.innerHTML = `<tr><td colspan="6" style="padding:14px; text-align:center; color:#64748b;">Сессий нет</td></tr>`;
+        if (!list.length) {
+            sessionsBody.innerHTML =
+                `<tr><td colspan="7" style="padding:14px; text-align:center; color:#64748b;">Сессий нет</td></tr>`;
             sessionsCount.textContent = 'Сессий: 0';
+            restartCountdown();
+            updateCurrentSessionBanner();
             return;
         }
+        const now = Date.now();
         const frag = document.createDocumentFragment();
-
         list.forEach(s => {
             const tr = document.createElement('tr');
             const isCurrent = currentSessionId != null && s.id === currentSessionId;
@@ -248,108 +249,108 @@
             const ip = s?.requestData?.ip;
             const ua = s?.requestData?.user_agent;
             const expiresAtMs = toMs(s.expiresAt);
+            const isActive = !!s.active;
 
             tr.dataset.sessionId = s.id;
             tr.dataset.expiresAtMs = expiresAtMs ?? '';
+            tr.dataset.active = String(isActive);
 
-            const tdTime = document.createElement('td');
-            tdTime.textContent = isoToLocalString(loginTime);
+            const tdLogin = document.createElement('td');
+            tdLogin.textContent = isoToLocalString(loginTime);
 
             const tdUA = document.createElement('td');
-            tdUA.innerHTML = (isCurrent ? '<span class="current-badge">ТЕКУЩАЯ</span>' : '') + `<span>${sanitize(ua || '')}</span>`;
+            tdUA.innerHTML = (isCurrent ? '<span class="current-badge">ТЕКУЩАЯ</span>' : '') +
+                `<span>${sanitize(ua || '')}</span>`;
 
             const tdIP = document.createElement('td');
             tdIP.textContent = ip || '-';
 
+            const tdActive = document.createElement('td');
+            tdActive.innerHTML = isActive
+                ? '<span class="badge badge-active">Да</span>'
+                : '<span class="badge badge-inactive">Нет</span>';
+
             const tdGoogle = document.createElement('td');
             tdGoogle.textContent = booleanText(s.googleLogin);
 
-            const tdRemaining = document.createElement('td');
-            tdRemaining.className = 'time-remaining';
-            tdRemaining.textContent = '...';
+            const tdRem = document.createElement('td');
+            tdRem.className = 'time-remaining';
+            if (isActive && expiresAtMs) {
+                const diff = expiresAtMs - now;
+                tdRem.textContent = diff <= 0 ? 'Истекла' : formatDuration(diff);
+                const cls = classifyRemaining(diff);
+                if (cls) tdRem.classList.add(cls); // FIX: добавляем класс только если не пустой
+            } else {
+                tdRem.textContent = '—';
+            }
 
-            const tdActions = document.createElement('td');
-            tdActions.style.whiteSpace = 'nowrap';
-
+            const tdAct = document.createElement('td');
+            tdAct.style.whiteSpace = 'nowrap';
             const delBtn = document.createElement('button');
             delBtn.type = 'button';
             delBtn.className = 'outline danger';
             delBtn.style.fontSize = '.6rem';
             delBtn.style.padding = '5px 8px';
             delBtn.textContent = 'Удалить';
-            delBtn.dataset.sessionId = s.id;
+            delBtn.addEventListener('click', () => deleteSingleSession(s.id, isCurrent));
+            tdAct.appendChild(delBtn);
 
-            delBtn.addEventListener('click', () => {
-                deleteSingleSession(s.id, isCurrent);
-            });
-
-            tdActions.appendChild(delBtn);
-
-            tr.appendChild(tdTime);
+            tr.appendChild(tdLogin);
             tr.appendChild(tdUA);
             tr.appendChild(tdIP);
+            tr.appendChild(tdActive);
             tr.appendChild(tdGoogle);
-            tr.appendChild(tdRemaining);
-            tr.appendChild(tdActions);
+            tr.appendChild(tdRem);
+            tr.appendChild(tdAct);
+
             frag.appendChild(tr);
         });
-
         sessionsBody.appendChild(frag);
         sessionsCount.textContent = 'Сессий: ' + list.length;
 
-        // После рендера обновить таймеры
-        updateAllRemaining(); // моментально показать
+        updateCurrentSessionBanner();
         restartCountdown();
     }
 
     async function deleteSingleSession(id, isCurrent) {
         clearMessages();
-        if (typeof id === 'undefined' || id === null) {
-            showError('ID сессии отсутствует');
-            return;
-        }
-        if (!confirm('Удалить выбранную сессию?')) return;
+        if (id == null) { showError('ID отсутствует'); return; }
+        if (!confirm('Удалить (деактивировать) эту сессию?')) return;
         try {
-            const resp = await fetch('/api/user/sessions/' + encodeURIComponent(id), { method: 'DELETE' });
-            if (resp.status === 401) {
-                location.reload();
+            const resp = await fetch(`/api/user/sessions?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+            if (resp.status === 401) { window.location.reload(); return; }
+            if (handlePossiblyRedirected(resp)) return;
+            if (!resp.ok) {
+                const txt = await resp.text().catch(()=> '');
+                showError('Не удалось удалить: ' + (txt || resp.status));
                 return;
             }
-            if (resp.status === 204) {
-                if (isCurrent) {
-                    location.reload();
-                    return;
-                }
-                showSuccess('Сессия удалена');
-                await reloadSessionsFlow();
-            } else {
-                const txt = await resp.text();
-                showError('Не удалось удалить сессию: ' + (txt || resp.status));
+            if (isCurrent) {
+                window.location.reload();
+                return;
             }
-        } catch (e) {
-            console.error(e);
+            showSuccess('Сессия деактивирована');
+            await reloadSessionsFlow();
+        } catch {
             showError('Ошибка сети при удалении');
         }
     }
 
     async function deleteAllSessions() {
         clearMessages();
-        if (!confirm('Удалить все активные сессии? (Текущая тоже будет завершена)')) return;
+        if (!confirm('Удалить ВСЕ активные сессии? (Текущая тоже будет завершена)')) return;
         try {
             const resp = await fetch('/api/user/sessions', { method: 'DELETE' });
-            if (resp.status === 401) {
-                location.reload();
+            if (resp.status === 401) { window.location.reload(); return; }
+            if (handlePossiblyRedirected(resp)) return;
+            if (!resp.ok) {
+                const txt = await resp.text().catch(()=> '');
+                showError('Не удалось удалить все: ' + (txt || resp.status));
                 return;
             }
-            if (resp.status === 204) {
-                location.reload();
-            } else {
-                const txt = await resp.text();
-                showError('Не удалось удалить все сессии: ' + (txt || resp.status));
-            }
-        } catch (e) {
-            console.error(e);
-            showError('Ошибка сети при удалении всех сессий');
+            window.location.reload();
+        } catch {
+            showError('Ошибка сети при удалении всех');
         }
     }
 
@@ -361,22 +362,21 @@
     // ==== COUNTDOWN ====
     function updateAllRemaining() {
         const now = Date.now();
-        const rows = sessionsBody.querySelectorAll('tr');
-        rows.forEach(row => {
+        sessionsBody.querySelectorAll('tr').forEach(row => {
             const cell = row.querySelector('.time-remaining');
             if (!cell) return;
+            const active = row.dataset.active === 'true';
             const exp = parseInt(row.dataset.expiresAtMs || '', 10);
-            if (!exp) {
-                cell.textContent = '-';
+            if (!active || !exp) {
+                cell.textContent = '—';
                 cell.className = 'time-remaining';
                 return;
             }
             const diff = exp - now;
             const cls = classifyRemaining(diff);
-            cell.className = 'time-remaining ' + cls;
+            cell.className = 'time-remaining' + (cls ? (' ' + cls) : ''); // тоже безопасно
             cell.textContent = diff <= 0 ? 'Истекла' : formatDuration(diff);
         });
-        // Обновить баннер текущей сессии
         updateCurrentSessionBanner();
     }
 
@@ -387,7 +387,7 @@
 
     function updateCurrentSessionBanner() {
         if (!currentSessionExpiresAtMs) {
-            currentSessionExpireBanner?.classList.remove('show');
+            currentSessionExpireBanner.classList.remove('show');
             return;
         }
         const diff = currentSessionExpiresAtMs - Date.now();
@@ -398,9 +398,9 @@
             return;
         }
         currentSessionExpireBanner.classList.add('show');
-        currentSessionRemainingSpan.textContent = formatDuration(diff);
         const cls = classifyRemaining(diff);
-        currentSessionRemainingSpan.className = 'time-remaining ' + cls;
+        currentSessionRemainingSpan.textContent = formatDuration(diff);
+        currentSessionRemainingSpan.className = 'time-remaining' + (cls ? (' ' + cls) : '');
     }
 
     // ==== EVENTS ====
@@ -408,23 +408,25 @@
         e.preventDefault();
         saveProfile();
     });
-
     btnReset?.addEventListener('click', () => {
         resetProfileForm();
         clearMessages();
     });
-
     btnReloadSessions?.addEventListener('click', () => {
         withButtonSpinner(btnReloadSessions, async () => {
             clearMessages();
             await reloadSessionsFlow();
         });
     });
-
     btnDeleteAllSessions?.addEventListener('click', () => {
         withButtonSpinner(btnDeleteAllSessions, async () => {
             await deleteAllSessions();
         });
+    });
+    sessionsFilter?.addEventListener('change', async () => {
+        currentFilter = sessionsFilter.value;
+        clearMessages();
+        await loadSessions();
     });
 
     // ==== INIT ====
@@ -433,9 +435,7 @@
         await reloadSessionsFlow();
     })();
 
-    // Safety: clear interval on unload
     window.addEventListener('beforeunload', () => {
         if (countdownInterval) clearInterval(countdownInterval);
     });
-
 })();
