@@ -23,38 +23,39 @@ fun Application.configureSessionManagement() {
                     val sessions = session.getAllUserSessions(true).map { it.toRaw() }
                     call.respond(sessions)
                 }
+
                 get("/all") {
                     val session = call.getSession() ?: return@get
                     val sessions = session.getAllUserSessions(null).map { it.toRaw() }
                     call.respond(sessions)
                 }
+
                 get("/not-active") {
                     val session = call.getSession() ?: return@get
                     val sessions = session.getAllUserSessions(false).map { it.toRaw() }
                     call.respond(sessions)
                 }
+
                 get("/current") {
                     val session = call.getSession()?.toRaw() ?: return@get
                     call.respond(session)
                 }
+
                 delete {
-                    val session = call.getSession() ?: return@delete
-                    session.log(
-                        AdminLogType.SESSION_DELETE,
-                        "delete all own sessions: [${
-                            session.getAllUserSessions(true).joinToString { it.id.toString() }
-                        }]"
-                    )
-                    val res = SessionService.deleteByUserId(session.userId)
-                    call.respond(HttpStatusCode.OK, res)
-                }
-                delete("/{id}") {
                     val session = call.getSession() ?: return@delete
                     val ids = fetchQueryInts("id") ?: return@delete
                     if (ids.isEmpty()) {
-                        call.respond(HttpStatusCode.BadRequest, "id is required")
+                        session.log(
+                            AdminLogType.SESSION_DELETE,
+                            "delete all own sessions: [${
+                                session.getAllUserSessions(true).joinToString { it.id.toString() }
+                            }]"
+                        )
+                        val res = SessionService.deleteByUserId(session.userId)
+                        call.respond(HttpStatusCode.OK, res)
                         return@delete
                     }
+
                     val aim = SessionService.getByIds(ids)
                     if (aim.isEmpty()) {
                         call.respond(HttpStatusCode.NotFound)
@@ -71,58 +72,13 @@ fun Application.configureSessionManagement() {
                 }
             }
             setPermissions(UserPermissions(admin = true)) {
-                route("/api/manage/user/{id}/sessions") {
-                    get {
-                        val id = call.parameters["id"]?.toIntOrNull()
-                        if (id == null) {
-                            call.respond(HttpStatusCode.BadRequest, "can't read id")
-                            return@get
-                        }
-                        val active = call.queryParameters["active"]?.toBoolean()
-                        val user = UserService.getById(id)
-                        if (user == null) {
-                            call.respond(HttpStatusCode.NotFound)
-                            return@get
-                        }
-                        val sessions = user.getAllSessions(active).map { it.toRaw() }
-                        call.respond(sessions)
-                    }
-                    delete {
-                        val session = call.getSession() ?: return@delete
-                        val userId = call.parameters["id"]?.toIntOrNull()
-                        if (userId == null) {
-                            call.respond(HttpStatusCode.BadRequest, "can't read id")
-                            return@delete
-                        }
-                        session.log(
-                            AdminLogType.SESSION_DELETE,
-                            "delete all sessions of user: $userId [${
-                                SessionService.getUserSessions(userId, true).joinToString { it.id.toString() }
-                            }]"
-                        )
-                        val res = SessionService.deleteByUserId(userId)
-                        call.respond(HttpStatusCode.OK, res)
-                    }
-                }
                 route("/api/manage/session") {
                     get {
-                        val active = call.queryParameters["active"]?.toBoolean()
-                        val sessions = SessionService.getAll(active).map { it.toRaw() }
-                        call.respond(sessions)
-                    }
-                    delete {
-                        val session = call.getSession() ?: return@delete
-                        session.log(
-                            AdminLogType.SESSION_DELETE,
-                            "delete all sessions: [${SessionService.getAll(true).joinToString { it.id.toString() }}]"
-                        )
-                        val res = SessionService.deleteAll()
-                        call.respond(HttpStatusCode.OK, res)
-                    }
-                    get("/{id}") {
                         val ids = fetchQueryInts("id") ?: return@get
                         if (ids.isEmpty()) {
-                            call.respond(HttpStatusCode.BadRequest, "id is required")
+                            val active = call.queryParameters["active"]?.toBoolean()
+                            val sessions = SessionService.getAll(active).map { it.toRaw() }
+                            call.respond(sessions)
                             return@get
                         }
                         val session = SessionService.getByIds(ids).map { it.toRaw() }
@@ -132,11 +88,16 @@ fun Application.configureSessionManagement() {
                         }
                         call.respond(session)
                     }
-                    delete("/{id}") {
+                    delete {
                         val session = call.getSession() ?: return@delete
                         val ids = fetchQueryInts("id") ?: return@delete
                         if (ids.isEmpty()) {
-                            call.respond(HttpStatusCode.BadRequest, "can't read id")
+                            session.log(
+                                AdminLogType.SESSION_DELETE,
+                                "delete all sessions: [${SessionService.getAll(true).joinToString { it.id.toString() }}]"
+                            )
+                            val res = SessionService.deleteAll()
+                            call.respond(HttpStatusCode.OK, res)
                             return@delete
                         }
                         val status = SessionService.deleteByIds(ids)
@@ -146,6 +107,37 @@ fun Application.configureSessionManagement() {
                         }
                         session.log(AdminLogType.SESSION_DELETE, "delete sessions: ${ids.joinToString()}")
                         call.respond(HttpStatusCode.OK, status)
+                    }
+                    route("/byUserId") {
+                        get {
+                            val userIds = fetchQueryInts("id") ?: return@get
+                            if (userIds.isEmpty()) {
+                                call.respond(HttpStatusCode.BadRequest, "id is required")
+                                return@get
+                            }
+                            val active = call.queryParameters["active"]?.toBoolean()
+
+                            val sessions = SessionService.getUsersSessions(userIds, active).map { it.toRaw() }
+                            call.respond(sessions)
+                        }
+                        delete {
+                            val session = call.getSession() ?: return@delete
+                            val userIds = fetchQueryInts("id") ?: return@delete
+                            if (userIds.isEmpty()) {
+                                call.respond(HttpStatusCode.BadRequest, "id is required")
+                                return@delete
+                            }
+                            userIds.forEach { userId ->
+                                session.log(
+                                    AdminLogType.SESSION_DELETE,
+                                    "delete all sessions of user: $userId [${
+                                        SessionService.getUserSessions(userId, true).joinToString { it.id.toString() }
+                                    }]"
+                                )
+                            }
+                            val res = SessionService.deleteByUsersId(userIds)
+                            call.respond(HttpStatusCode.OK, res)
+                        }
                     }
                 }
             }
