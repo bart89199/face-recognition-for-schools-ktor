@@ -12,6 +12,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondOutputStream
+import io.ktor.server.routing.Route
 import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
@@ -61,41 +62,35 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
             SchemaUtils.create(table)
         }
     }
-    protected fun Application.configureLogManagers(route: String, logListTypeInfo: TypeInfo) {
-        routing {
-            authenticate("session-auth") {
-                setPermissions(UserPermissions(logs = true)) {
-                    route(route) {
-                        get {
-                            val download = call.request.queryParameters["download"].toBoolean()
-                            val logs = fetchLogs() ?: return@get
-                            if (!download) {
-                                call.respond(logs, logListTypeInfo)
-                                return@get
-                            }
-                            val fileName = logsFileName() ?: return@get
 
-                            call.response.headers.append(
-                                HttpHeaders.ContentDisposition,
-                                ContentDisposition.Attachment
-                                    .withParameter(ContentDisposition.Parameters.FileName, fileName)
-                                    .toString()
-                            )
-                            call.response.headers.append(HttpHeaders.CacheControl, "no-store, no-cache, max-age=0")
+    protected fun Route.configureLogManagers(logListTypeInfo: TypeInfo) {
+        get {
+            val download = call.request.queryParameters["download"].toBoolean()
+            val logs = fetchLogs() ?: return@get
+            if (!download) {
+                call.respond(logs, logListTypeInfo)
+                return@get
+            }
+            val fileName = logsFileName() ?: return@get
 
-                            val newline = "\n".toByteArray()
-                            call.respondOutputStream(ContentType.Text.Plain.withCharset(Charsets.UTF_8)) {
-                                for (line in logs) {
-                                    write(line.toString().toByteArray(Charsets.UTF_8))
-                                    write(newline)
-                                }
-                                flush()
-                            }
-                        }
-                    }
+            call.response.headers.append(
+                HttpHeaders.ContentDisposition,
+                ContentDisposition.Attachment
+                    .withParameter(ContentDisposition.Parameters.FileName, fileName)
+                    .toString()
+            )
+            call.response.headers.append(HttpHeaders.CacheControl, "no-store, no-cache, max-age=0")
+
+            val newline = "\n".toByteArray()
+            call.respondOutputStream(ContentType.Text.Plain.withCharset(Charsets.UTF_8)) {
+                for (line in logs) {
+                    write(line.toString().toByteArray(Charsets.UTF_8))
+                    write(newline)
                 }
+                flush()
             }
         }
+
     }
 
     protected suspend fun RoutingContext.fetchLogType(): List<T>? = try {

@@ -1,7 +1,12 @@
 package com.batr.log
 
+import com.batr.auth.setPermissions
+import com.batr.auth.user.UserPermissions
 import com.batr.database.Database.suspendTransaction
 import io.ktor.server.application.Application
+import io.ktor.server.auth.authenticate
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
 import io.ktor.util.reflect.typeInfo
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
@@ -50,15 +55,24 @@ object SystemLogService :
         )
     }
 
-    fun configureRouting(app: Application) = app.configureLogManagers("api/logs/system", typeInfo<List<SystemLog>>())
-
-    suspend fun log(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit = suspendTransaction {
-        table.insert {
-            it[table.type] = type
-            it[table.time] = time
-            it[table.message] = message
+    fun configureRouting(app: Application) = app.routing {
+        route("api/logs/admin") {
+            authenticate("session-auth") {
+                setPermissions(UserPermissions(logs = true)) {
+                    configureLogManagers(typeInfo<List<SystemLog>>())
+                }
+            }
         }
     }
+
+    suspend fun log(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit =
+        suspendTransaction {
+            table.insert {
+                it[table.type] = type
+                it[table.time] = time
+                it[table.message] = message
+            }
+        }
 
     fun logB(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit = transaction {
         table.insert {

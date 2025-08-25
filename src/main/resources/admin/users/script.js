@@ -1,6 +1,7 @@
 (function() {
     const userApiRoot = '/api/manage/user';
     const sessionApiRoot = '/api/manage/session';
+    const sessionByUserRoot = '/api/manage/session/byUserId';
     const currentUserApi = '/api/user/profile';
 
     // DOM COMMON
@@ -46,7 +47,8 @@
     // Bulk selection
     const masterUserCheckbox = document.getElementById('masterUserCheckbox');
     const btnSelectAll = document.getElementById('btnSelectAll');
-    const btnClearSelection = document.getElementById('btnClearSelection');
+    theBtnClearSelection = document.getElementById('btnClearSelection');
+    const btnClearSelection = theBtnClearSelection;
     const btnDeleteSelected = document.getElementById('btnDeleteSelected');
     const btnDeleteSessionsSelected = document.getElementById('btnDeleteSessionsSelected');
 
@@ -64,12 +66,12 @@
     const backToUsersBtn = document.getElementById('backToUsersBtn');
     const formTitle = document.getElementById('formTitle');
 
-    // Selected single user info (for user sessions tab)
+    // Selected single user tag (for admin per-user sessions)
     const selectedUserTag = document.getElementById('selectedUserTag');
     const selectedUserNameSpan = document.getElementById('selectedUserName');
     const selectedUserIdSpan   = document.getElementById('selectedUserId');
 
-    // User sessions tab
+    // User sessions tab (admin - sessions of selected user)
     const userSessionsFilter = document.getElementById('userSessionsFilter');
     const refreshUserSessionsBtn = document.getElementById('refreshUserSessionsBtn');
     const deleteUserSessionsBtn  = document.getElementById('deleteUserSessionsBtn');
@@ -95,7 +97,7 @@
     let currentSelectedUserName = null;
     let currentUserList = [];
 
-    // Permissions mapping (need for labels in form)
+    // Permissions mapping
     const permDescriptions = {
         stream: 'Просмотр видео',
         door_control: 'Управление дверью',
@@ -197,9 +199,10 @@
 
     function showCount(n){ countInfo.textContent='Всего пользователей: '+n; }
 
+    // Load all users
     async function loadAllUsers(){
         try {
-            const data = await fetchJSON(userApiRoot);
+            const data = await fetchJSON(userApiRoot); // GET /api/manage/user (list)
             currentUserList = data || [];
             renderUsersTable(currentUserList);
             showCount(currentUserList.length);
@@ -208,12 +211,12 @@
         }
     }
 
-    // Searches
+    // Searches (updated to real backend format)
     async function searchNameLike(){
         const v = inputNameLike.value.trim();
         if(!v){ showError('Введите часть имени'); return; }
         try {
-            const users = await fetchJSON(`${userApiRoot}/findByName/${encodeURIComponent(v)}`);
+            const users = await fetchJSON(`${userApiRoot}/findByName?name=${encodeURIComponent(v)}`);
             currentUserList = users || [];
             renderUsersTable(currentUserList);
             showCount(currentUserList.length);
@@ -225,10 +228,8 @@
         if(!raw){ showError('Введите имя/имена'); return; }
         const names = parseList(raw);
         if(!names.length){ showError('Некорректный ввод'); return; }
-        // Endpoint expects query param ?name=a,b,...
-        const url = `${userApiRoot}/byName/x?name=${encodeURIComponent(names.join(','))}`;
         try {
-            const users = await fetchJSON(url);
+            const users = await fetchJSON(`${userApiRoot}/byName?name=${encodeURIComponent(names.join(','))}`);
             currentUserList = users || [];
             renderUsersTable(currentUserList);
             showCount(currentUserList.length);
@@ -239,7 +240,7 @@
         const v = inputEmailLike.value.trim();
         if(!v){ showError('Введите часть email'); return; }
         try {
-            const users = await fetchJSON(`${userApiRoot}/findByEmail/${encodeURIComponent(v)}`);
+            const users = await fetchJSON(`${userApiRoot}/findByEmail?email=${encodeURIComponent(v)}`);
             currentUserList = users || [];
             renderUsersTable(currentUserList);
             showCount(currentUserList.length);
@@ -251,9 +252,8 @@
         if(!raw){ showError('Введите email(ы)'); return; }
         const emails = parseList(raw);
         if(!emails.length){ showError('Некорректный ввод'); return; }
-        const url = `${userApiRoot}/byEmail/x?email=${encodeURIComponent(emails.join(','))}`;
         try {
-            const users = await fetchJSON(url);
+            const users = await fetchJSON(`${userApiRoot}/byEmail?email=${encodeURIComponent(emails.join(','))}`);
             currentUserList = users || [];
             renderUsersTable(currentUserList);
             showCount(currentUserList.length);
@@ -265,10 +265,8 @@
         if(!raw){ showError('Введите ID'); return; }
         const ids = parseIdList(raw);
         if(!ids.length){ showError('Некорректные ID'); return; }
-        const first = ids[0]; // path placeholder
-        const url = `${userApiRoot}/${first}?id=${encodeURIComponent(ids.join(','))}`;
         try {
-            const users = await fetchJSON(url);
+            const users = await fetchJSON(`${userApiRoot}?id=${encodeURIComponent(ids.join(','))}`);
             currentUserList = users || [];
             renderUsersTable(currentUserList);
             showCount(currentUserList.length);
@@ -329,9 +327,7 @@
         const { edit, del, sessions } = btn.dataset;
         if (edit){
             try {
-                const first = edit; // placeholder same id
-                const userList = await fetchJSON(`${userApiRoot}/${first}?id=${encodeURIComponent(edit)}`);
-                const user = userList && userList[0];
+                const user = await fetchJSON(`${userApiRoot}/${edit}`); // single user
                 if(!user){ showError('Пользователь не найден'); return; }
                 fillFormForEdit(user);
                 selectUser(user.id, user.name);
@@ -373,41 +369,46 @@
 
     btnDeleteSessionsSelected.addEventListener('click', async ()=>{
         if(!selectedUserIdsSet.size){ showError('Нет выбранных пользователей'); return; }
-        if(!confirm('Удалить (деактивировать) все активные сессии выбранных пользователей?')) return;
-        let okCount=0, failCount=0;
-        for (const id of selectedUserIdsSet){
-            try{
-                const res = await fetch(`${userApiRoot}/${id}/sessions`, { method:'DELETE', credentials:'include' });
-                if(res.ok) okCount++; else failCount++;
-            }catch(_){ failCount++; }
+        if(!confirm('Удалить (деактивировать) активные сессии выбранных пользователей?')) return;
+        // backend supports multiple user IDs: DELETE /api/manage/session/byUserId?id=1,2
+        try {
+            const res = await fetch(`${sessionByUserRoot}?id=${encodeURIComponent([...selectedUserIdsSet].join(','))}`, {
+                method:'DELETE',
+                credentials:'include'
+            });
+            if(!res.ok){
+                const txt=await res.text().catch(()=> '');
+                if(res.status===403) showError('Недостаточно прав'); else showError(txt || 'Ошибка удаления сессий');
+                return;
+            }
+            showOk('Сессии выбранных пользователей деактивированы');
+            if(currentSelectedUserId && selectedUserIdsSet.has(currentSelectedUserId)) loadUserSessions();
+            loadAllSessions();
+        } catch(e){
+            showError(e.message);
         }
-        showOk(`Сессии: успешно у ${okCount}, ошибок: ${failCount}`);
-        if(currentSelectedUserId && selectedUserIdsSet.has(currentSelectedUserId)) loadUserSessions();
-        loadAllSessions();
     });
 
     async function deleteUsers(ids){
         if(!ids.length) return;
-        // API expects /api/manage/user/{id}?id=1,2,3 (query param)
-        const first = ids[0];
-        try {
-            const res = await fetch(`${userApiRoot}/${first}?id=${encodeURIComponent(ids.join(','))}`, {
-                method:'DELETE', credentials:'include'
-            });
-            if(!res.ok){
-                const txt = await res.text().catch(()=> '');
-                if(res.status===403) showError('Недостаточно прав');
-                else showError(txt || 'Ошибка удаления');
-                return;
-            }
-            showOk('Удалено пользователей: '+ids.length);
-            ids.forEach(id=>{
-                if(currentSelectedUserId===id) clearUserSelection();
-                selectedUserIdsSet.delete(id);
-            });
-            await loadAllUsers();
-            if(editIdInput.value && ids.includes(Number(editIdInput.value))) resetForm();
-        }catch(err){ showError(err.message); }
+        // Backend bulk DELETE route currently incomplete; perform per-user deletes to guarantee behavior
+        let ok=0, fail=0;
+        for(const id of ids){
+            try{
+                const res = await fetch(`${userApiRoot}/${id}`, { method:'DELETE', credentials:'include' });
+                if(res.ok){
+                    ok++;
+                    if(currentSelectedUserId===id) clearUserSelection();
+                    selectedUserIdsSet.delete(id);
+                } else {
+                    fail++;
+                }
+            }catch(_){ fail++; }
+        }
+        if(ok) showOk('Удалено пользователей: '+ok+(fail?`, ошибок: ${fail}`:''));
+        else showError('Не удалось удалить (ошибок: '+fail+')');
+        await loadAllUsers();
+        if(editIdInput.value && ids.includes(Number(editIdInput.value))) resetForm();
     }
 
     function fillFormForEdit(user){
@@ -469,7 +470,6 @@
     btnEmailExact.addEventListener('click',searchEmailExact);
     btnIds.addEventListener('click',searchIds);
 
-    // Enter key triggers (optional)
     [inputNameLike,inputNameExact,inputEmailLike,inputEmailExact,inputIds].forEach(inp=>{
         inp.addEventListener('keydown',e=>{
             if(e.key==='Enter'){
@@ -495,7 +495,7 @@
         const password = passwordInput.value;
         const rootFlag = rootCheckbox.checked;
         if(!name || !email){ showError('Имя и email обязательны'); return; }
-        if(!id && !password){ showError('Пароль обязателен при создании'); return; }
+        if(!id && !password){ showError('Пароль обязателен при создании пользователя'); return; }
 
         const perms = getPermsFromForm();
         const originalText = saveBtn.textContent;
@@ -506,7 +506,7 @@
             if(id){
                 const payload = { name, email, permissions:perms, root: rootFlag };
                 if(password) payload.password = password;
-                const res = await fetch(`${userApiRoot}/${id}?id=${id}`, {
+                const res = await fetch(`${userApiRoot}/${id}`, {
                     method:'PUT', credentials:'include',
                     headers:{'Content-Type':'application/json'},
                     body: JSON.stringify(payload)
@@ -547,14 +547,16 @@
         }
     });
 
-    // USER SESSIONS TAB
+    // USER SESSIONS TAB (admin per selected user)
     userSessionsFilter.addEventListener('change', ()=>{ if(currentSelectedUserId) loadUserSessions(); });
     refreshUserSessionsBtn.addEventListener('click', ()=>{ if(currentSelectedUserId) loadUserSessions(); });
     deleteUserSessionsBtn.addEventListener('click', async ()=>{
         if(!currentSelectedUserId) return;
         if(!confirm('Удалить все активные сессии пользователя '+currentSelectedUserId+'?')) return;
         try{
-            const res = await fetch(`${userApiRoot}/${currentSelectedUserId}/sessions`, { method:'DELETE', credentials:'include' });
+            const res = await fetch(`${sessionByUserRoot}?id=${currentSelectedUserId}`, {
+                method:'DELETE', credentials:'include'
+            });
             if(!res.ok){
                 const txt=await res.text().catch(()=> '');
                 if(res.status===403) showError('Недостаточно прав');
@@ -563,6 +565,7 @@
             }
             showOk('Сессии пользователя деактивированы');
             await loadUserSessions();
+            loadAllSessions();
         }catch(e){ showError(e.message); }
     });
 
@@ -573,11 +576,12 @@
         }
         userSessionsInfo.textContent='Загрузка...';
         const filterVal = userSessionsFilter.value;
-        let url = `${userApiRoot}/${currentSelectedUserId}/sessions`;
-        if(filterVal==='active') url+='?active=true';
-        else if(filterVal==='inactive') url+='?active=false';
+        const params = new URLSearchParams();
+        params.set('id', currentSelectedUserId);
+        if(filterVal==='active') params.set('active','true');
+        else if(filterVal==='inactive') params.set('active','false');
         try {
-            const data = await fetchJSON(url);
+            const data = await fetchJSON(`${sessionByUserRoot}?${params.toString()}`);
             renderUserSessions(data||[]);
         }catch(e){
             showError(e.message);
@@ -655,7 +659,7 @@
         const sid=btn.dataset.delSession;
         if(!confirm('Удалить сессию '+sid+'?')) return;
         try{
-            const res = await fetch(`${sessionApiRoot}/${sid}?id=${sid}`, { method:'DELETE', credentials:'include' });
+            const res = await fetch(`${sessionApiRoot}?id=${encodeURIComponent(sid)}`, { method:'DELETE', credentials:'include' });
             if(!res.ok){
                 const txt=await res.text().catch(()=> '');
                 if(res.status===403) showError('Недостаточно прав');
@@ -664,6 +668,7 @@
             }
             showOk('Сессия удалена');
             await loadUserSessions();
+            loadAllSessions();
         }catch(err){ showError(err.message); }
     });
 
@@ -730,7 +735,7 @@
         const sid=btn.dataset.delGlobalSession;
         if(!confirm('Удалить сессию '+sid+'?')) return;
         try{
-            const res=await fetch(`${sessionApiRoot}/${sid}?id=${sid}`, { method:'DELETE', credentials:'include' });
+            const res=await fetch(`${sessionApiRoot}?id=${encodeURIComponent(sid)}`, { method:'DELETE', credentials:'include' });
             if(!res.ok){
                 const txt=await res.text().catch(()=> '');
                 if(res.status===403) showError('Недостаточно прав'); else showError(txt || 'Ошибка удаления сессии');
@@ -752,10 +757,8 @@
         if(!raw){ showError('Введите ID сессий'); return; }
         const ids = parseIdList(raw);
         if(!ids.length){ showError('Некорректные ID'); return; }
-        const first = ids[0];
-        const url = `${sessionApiRoot}/${first}?id=${encodeURIComponent(ids.join(','))}`;
         try{
-            const list = await fetchJSON(url);
+            const list = await fetchJSON(`${sessionApiRoot}?id=${encodeURIComponent(ids.join(','))}`);
             if(!list || !list.length){
                 renderAllSessions([]);
                 allSessionsCount.textContent='Всего сессий: 0';

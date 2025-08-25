@@ -13,6 +13,7 @@ import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.postgresql.util.PSQLException
 
 object UserService {
     fun load() {
@@ -100,15 +101,19 @@ object UserService {
         newPermissions: UserPermissions? = null,
         hashNewPassword: Boolean = true
     ): Boolean = suspendTransaction {
-        UserTable.update({ UserTable.id eq id }) { user ->
-            newName?.let { user[UserTable.name] = it }
-            newEmail?.let { user[UserTable.email] = it }
-            newPassword?.let {
-                user[UserTable.password] = if (hashNewPassword) PasswordHasher.hash(it).result else it
-            }
-            newRoot?.let { user[UserTable.root] = it }
-            newPermissions?.let { user[UserTable.permissions] = it }
-        } == 1
+        try {
+            UserTable.update({ UserTable.id eq id }) { user ->
+                newName?.let { user[UserTable.name] = it }
+                newEmail?.let { user[UserTable.email] = it }
+                newPassword?.let {
+                    user[UserTable.password] = if (hashNewPassword) PasswordHasher.hash(it).result else it
+                }
+                newRoot?.let { user[UserTable.root] = it }
+                newPermissions?.let { user[UserTable.permissions] = it }
+            } == 1
+        } catch (_: ExposedSQLException) {
+            false
+        }
     }
 
     private fun Query.toModel(): List<User> = map {

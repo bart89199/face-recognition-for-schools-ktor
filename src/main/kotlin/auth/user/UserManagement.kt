@@ -51,7 +51,7 @@ fun Application.configureUserManagement() {
                     if (status) {
                         session.log(
                             AdminLogType.USER_UPDATE,
-                            "update own profile (${userUpdate.name?.let { name -> "name: ${user.name} -> $name" }} ${userUpdate.password?.let { "new password" }})"
+                            "update own profile (${userUpdate.name?.let { name -> "name: ${user.name} -> $name" } ?: ""} ${userUpdate.password?.let { "new password" } ?: ""})"
                         )
                         call.respond(HttpStatusCode.OK)
                     } else {
@@ -204,11 +204,11 @@ fun Application.configureUserManagement() {
                             if (status) {
                                 session.log(
                                     AdminLogType.USER_UPDATE, "update user $id (" +
-                                            "${userUpdate.name?.let { name -> "name: ${user.name} -> $name" }} " +
-                                            "${userUpdate.email?.let { email -> "email: ${user.email} -> $email" }} " +
-                                            "${userUpdate.password?.let { "new password" }} " +
-                                            "${userUpdate.root?.let { root -> "root: ${user.root} -> $root" }} " +
-                                            "${userUpdate.permissions?.let { perm -> "permissions: ${user.permissions} -> $perm" }})"
+                                            "${userUpdate.name?.let { name -> "name: ${user.name} -> $name" } ?: ""} " +
+                                            "${userUpdate.email?.let { email -> "email: ${user.email} -> $email" } ?: ""} " +
+                                            "${userUpdate.password?.let { "new password" } ?: ""} " +
+                                            "${userUpdate.root?.let { root -> "root: ${user.root} -> $root" } ?: ""} " +
+                                            "${userUpdate.permissions?.let { perm -> "permissions: ${user.permissions} -> $perm" } ?: ""})"
                                 )
                                 call.respond(HttpStatusCode.OK)
                             } else {

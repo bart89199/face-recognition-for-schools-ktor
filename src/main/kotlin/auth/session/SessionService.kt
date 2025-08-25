@@ -4,9 +4,15 @@ import com.batr.auth.TokenGenerator
 import com.batr.auth.user.User
 import com.batr.auth.user.UserService
 import com.batr.database.Database.suspendTransaction
+import com.batr.log.AdminLogType
+import com.batr.log.log
 import io.ktor.server.application.*
 import io.ktor.server.config.*
 import io.ktor.server.plugins.origin
+import io.ktor.server.routing.RoutingCall
+import io.ktor.server.routing.RoutingContext
+import io.ktor.server.sessions.clear
+import io.ktor.server.sessions.sessions
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
@@ -144,6 +150,12 @@ object SessionService {
         SessionTable.update({ SessionTable.token inList token }) {
             it[SessionTable.active] = false
         }
+    }
+
+    suspend fun UserSession.logout(call: RoutingCall) {
+        log(AdminLogType.USER_LOGOUT, "user logout")
+        delete()
+        call.sessions.clear<CookieUserSession>()
     }
 
 }

@@ -22,7 +22,7 @@ fun AuthenticationConfig.configureSessionAuthPlugin() {
             if (session?.check() != true) {
                 return@validate null
             }
-            return@validate UserIdPrincipal(session!!.userId.toString())
+            return@validate UserIdPrincipal(session.userId.toString())
 
         }
 

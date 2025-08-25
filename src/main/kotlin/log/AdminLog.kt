@@ -1,7 +1,12 @@
 package com.batr.log
 
+import com.batr.auth.setPermissions
+import com.batr.auth.user.UserPermissions
 import com.batr.database.Database.suspendTransaction
 import io.ktor.server.application.Application
+import io.ktor.server.auth.authenticate
+import io.ktor.server.routing.route
+import io.ktor.server.routing.routing
 import io.ktor.util.reflect.typeInfo
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
@@ -55,9 +60,22 @@ object AdminLogService :
         )
     }
 
-    fun configureRouting(app: Application) = app.configureLogManagers("api/logs/admin", typeInfo<List<AdminLog>>())
+    fun configureRouting(app: Application) = app.routing {
+        route("api/logs/system") {
+            authenticate("session-auth") {
+                setPermissions(UserPermissions(admin = true)) {
+                    configureLogManagers(typeInfo<List<AdminLog>>())
+                }
+            }
+        }
+    }
 
-    suspend fun log(type: AdminLogType, message: String, sessionId: Int, time: Long = System.currentTimeMillis()): Unit = suspendTransaction {
+    suspend fun log(
+        type: AdminLogType,
+        message: String,
+        sessionId: Int,
+        time: Long = System.currentTimeMillis()
+    ): Unit = suspendTransaction {
         table.insert {
             it[table.type] = type
             it[table.time] = time
@@ -66,12 +84,13 @@ object AdminLogService :
         }
     }
 
-    fun logB(type: AdminLogType, message: String, sessionId: Int, time: Long = System.currentTimeMillis()): Unit = transaction {
-        table.insert {
-            it[table.type] = type
-            it[table.time] = time
-            it[table.message] = message
-            it[table.sessionId] = sessionId
+    fun logB(type: AdminLogType, message: String, sessionId: Int, time: Long = System.currentTimeMillis()): Unit =
+        transaction {
+            table.insert {
+                it[table.type] = type
+                it[table.time] = time
+                it[table.message] = message
+                it[table.sessionId] = sessionId
+            }
         }
-    }
 }

@@ -2,6 +2,7 @@ package com.batr.auth
 
 import com.batr.HOME_PATH
 import com.batr.auth.session.CookieUserSession
+import com.batr.auth.session.SessionService.logout
 import com.batr.auth.session.check
 import com.batr.auth.session.delete
 import com.batr.auth.user.UserService
@@ -26,9 +27,7 @@ fun Application.configureLoginRouting() {
         }
         get("/logout") {
             val session = call.getSession(false) ?: return@get
-            session.log(AdminLogType.USER_LOGOUT, "user logout")
-            session.delete()
-            call.sessions.clear<CookieUserSession>()
+            session.logout(call)
             call.respondRedirect(HOME_PATH)
         }
         post("/api/login/local") {
@@ -36,6 +35,9 @@ fun Application.configureLoginRouting() {
             val email = input.email
             val password = input.password
             val longLogin = input.longLogin
+
+            val oldSession = call.getSession(false)
+            oldSession?.logout(call)
 
             val user = UserService.login(email, password)
             if (user == null) {
