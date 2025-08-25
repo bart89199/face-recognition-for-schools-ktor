@@ -4,6 +4,8 @@ package com.batr.auth.user
 import com.batr.auth.getSession
 import com.batr.auth.session.getUser
 import com.batr.auth.setPermissions
+import com.batr.log.AdminLogType
+import com.batr.log.log
 import com.batr.receiveOrRespond
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -35,7 +37,7 @@ fun Application.configureUserManagement() {
                     val session = call.getSession() ?: return@put
                     val user = session.getUser().toNoPass()
                     val userUpdate = call.receiveOrRespond<UserUpdate>() ?: return@put
-                    if (userUpdate.password?.isBlank() == false) {
+                    if (userUpdate.password?.isBlank() == true) {
                         call.respond(HttpStatusCode.BadRequest, "password is required")
                         return@put
                     }
@@ -45,10 +47,14 @@ fun Application.configureUserManagement() {
                         newPassword = userUpdate.password,
                     )
                     if (status) {
-                        call.respond(HttpStatusCode.Companion.OK)
+                        session.log(
+                            AdminLogType.USER_UPDATE,
+                            "update own profile (${userUpdate.name?.let { name -> "name: ${user.name} -> $name" }} ${userUpdate.password?.let { "new password" }})"
+                        )
+                        call.respond(HttpStatusCode.OK)
                     } else {
                         call.respond(
-                            HttpStatusCode.Companion.BadRequest,
+                            HttpStatusCode.BadRequest,
                             "can't update user, something went wrong"
                         )
                     }
@@ -64,6 +70,7 @@ fun Application.configureUserManagement() {
                     }
 
                     post {
+                        val session = call.getSession() ?: return@post
                         val newUser = call.receiveOrRespond<RawUser>() ?: return@post
                         if (newUser.password.isBlank()) {
                             call.respond(HttpStatusCode.BadRequest, "password is required")
@@ -77,10 +84,14 @@ fun Application.configureUserManagement() {
                         }
                         val id = UserService.createUser(newUser)
                         if (id != -1) {
+                            session.log(
+                                AdminLogType.USER_CREATED,
+                                "create user: $id (name = ${newUser.name}, email = ${newUser.email}, root = ${newUser.root}), permissions = ${newUser.permissions})"
+                            )
                             call.respond(HttpStatusCode.OK, id)
                         } else {
                             call.respond(
-                                HttpStatusCode.Companion.BadRequest,
+                                HttpStatusCode.BadRequest,
                                 "can't create user, email already exists or something wrong with db"
                             )
                         }
@@ -88,14 +99,20 @@ fun Application.configureUserManagement() {
                     }
                     route("/{id}") {
                         put {
+                            val session = call.getSession() ?: return@put
                             val id = call.parameters["id"]?.toIntOrNull()
                             if (id == null) {
-                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                                call.respond(HttpStatusCode.BadRequest, "can't read id")
+                                return@put
+                            }
+                            val user = UserService.getById(id)
+                            if (user == null) {
+                                call.respond(HttpStatusCode.NotFound, "user not found")
                                 return@put
                             }
                             val userUpdate = call.receiveOrRespond<UserUpdate>() ?: return@put
-                            if (UserService.getById(id)?.isRoot() == true || userUpdate.root == true) {
-                                if (call.getSession()?.isRoot() != true) {
+                            if (user.isRoot() || userUpdate.root == true) {
+                                if (session.isRoot() != true) {
                                     call.respond(HttpStatusCode.Forbidden)
                                     return@put
                                 }
@@ -109,43 +126,61 @@ fun Application.configureUserManagement() {
                                 userUpdate.permissions,
                             )
                             if (status) {
-                                call.respond(HttpStatusCode.Companion.OK)
+                                session.log(
+                                    AdminLogType.USER_UPDATE, "update user $id (" +
+                                        "${userUpdate.name?.let { name -> "name: ${user.name} -> $name" }} " +
+                                        "${userUpdate.email?.let { email -> "email: ${user.email} -> $email" }} " +
+                                        "${userUpdate.password?.let { "new password" }} " +
+                                        "${userUpdate.root?.let { root -> "root: ${user.root} -> $root" }} " +
+                                        "${userUpdate.permissions?.let { perm -> "permissions: ${user.permissions} -> $perm" }})"
+                                )
+                                call.respond(HttpStatusCode.OK)
                             } else {
                                 call.respond(
-                                    HttpStatusCode.Companion.NotFound,
+                                    HttpStatusCode.NotFound,
                                     "can't update user, invalid id or email already exists"
                                 )
                             }
                         }
 
                         delete {
+                            val session = call.getSession() ?: return@delete
                             val id = call.parameters["id"]?.toIntOrNull()
                             if (id == null) {
-                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                                call.respond(HttpStatusCode.BadRequest, "can't read id")
                                 return@delete
                             }
-                            if (UserService.getById(id)?.isRoot() == true) {
-                                if (call.getSession()?.isRoot() != true) {
+                            val user = UserService.getById(id)
+                            if (user == null) {
+                                call.respond(HttpStatusCode.NotFound, "user not found")
+                                return@delete
+                            }
+                            if (user.isRoot()) {
+                                if (session.isRoot() != true) {
                                     call.respond(HttpStatusCode.Forbidden)
                                     return@delete
                                 }
                             }
                             if (UserService.delete(id)) {
-                                call.respond(HttpStatusCode.Companion.OK)
+                                session.log(
+                                    AdminLogType.USER_DELETE,
+                                    "delete user $id (name = ${user.name}, email = ${user.email}, root = ${user.root}), permissions = ${user.permissions})"
+                                )
+                                call.respond(HttpStatusCode.OK)
                             } else {
-                                call.respond(HttpStatusCode.Companion.NotFound)
+                                call.respond(HttpStatusCode.NotFound)
                             }
                         }
 
                         get {
                             val id = call.parameters["id"]?.toIntOrNull()
                             if (id == null) {
-                                call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                                call.respond(HttpStatusCode.BadRequest, "can't read id")
                                 return@get
                             }
                             val user = UserService.getById(id)?.toNoPass()
                             if (user == null) {
-                                call.respond(HttpStatusCode.Companion.NotFound)
+                                call.respond(HttpStatusCode.NotFound)
                                 return@get
                             }
                             call.respond(user)
@@ -155,12 +190,12 @@ fun Application.configureUserManagement() {
                     get("/findByName/{name}") {
                         val name = call.parameters["name"]
                         if (name == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "name is required")
+                            call.respond(HttpStatusCode.BadRequest, "name is required")
                             return@get
                         }
                         val user = UserService.findLikeName(name).map { it.toNoPass() }
                         if (user.isEmpty()) {
-                            call.respond(HttpStatusCode.Companion.NotFound)
+                            call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
                         call.respond(user)
@@ -169,12 +204,12 @@ fun Application.configureUserManagement() {
                     get("/findByEmail/{email}") {
                         val email = call.parameters["email"]
                         if (email == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "email is required")
+                            call.respond(HttpStatusCode.BadRequest, "email is required")
                             return@get
                         }
                         val user = UserService.findLikeEmail(email).map { it.toNoPass() }
                         if (user.isEmpty()) {
-                            call.respond(HttpStatusCode.Companion.NotFound)
+                            call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
                         call.respond(user)
@@ -183,12 +218,12 @@ fun Application.configureUserManagement() {
                     get("/byName/{name}") {
                         val name = call.parameters["name"]
                         if (name == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "name is required")
+                            call.respond(HttpStatusCode.BadRequest, "name is required")
                             return@get
                         }
                         val user = UserService.getByName(name).map { it.toNoPass() }
                         if (user.isEmpty()) {
-                            call.respond(HttpStatusCode.Companion.NotFound)
+                            call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
                         call.respond(user)
@@ -197,12 +232,12 @@ fun Application.configureUserManagement() {
                     get("/byEmail/{email}") {
                         val email = call.parameters["email"]
                         if (email == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "email is required")
+                            call.respond(HttpStatusCode.BadRequest, "email is required")
                             return@get
                         }
                         val user = UserService.getByEmail(email)?.toNoPass()
                         if (user == null) {
-                            call.respond(HttpStatusCode.Companion.NotFound)
+                            call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
                         call.respond(user)

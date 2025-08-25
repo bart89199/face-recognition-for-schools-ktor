@@ -8,6 +8,8 @@ import com.batr.auth.session.SessionService
 import com.batr.auth.session.delete
 import com.batr.auth.session.getRequestData
 import com.batr.auth.user.UserService
+import com.batr.log.AdminLogType
+import com.batr.log.log
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -81,6 +83,8 @@ fun Application.configureGoogleOauthRooting() {
                             requestData = call.getRequestData(),
                             googleAccess = googleAccess
                         )
+                        newSession.log(AdminLogType.USER_LOGIN, "login by google oauth")
+
                         call.sessions.set(CookieUserSession(newSession.token))
 
                         redirectUrl?.let { redirect ->

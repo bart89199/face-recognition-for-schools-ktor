@@ -2,8 +2,9 @@ package com.batr
 
 import com.batr.auth.configureAuth
 import com.batr.database.Database.configureDatabase
-import com.batr.log.LogService
-import com.batr.log.LogService.configureLogManagers
+import com.batr.log.AdminLogService
+import com.batr.log.SystemLogService
+import com.batr.log.SystemLogType
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.serialization.kotlinx.json.*
@@ -22,24 +23,27 @@ val applicationHttpClient = HttpClient(CIO) {
 }
 
 fun Application.module() {
+
+    monitor.subscribe(ApplicationStarted) {
+        SystemLogService.logB(SystemLogType.SYSTEM_START, "System started")
+    }
+
+    monitor.subscribe(ApplicationStopped) {
+        SystemLogService.logB(SystemLogType.SYSTEM_STOP, "System stoped")
+    }
+
     configureDatabase()
     configureAuth()
-    LogService.load()
+    SystemLogService.load()
+    AdminLogService.load()
 
     configureSerialization()
     configureSockets()
     configureRouting()
     configureAccess()
 
-    configureLogManagers()
-
-//    UserService.getAll().forEach { user ->
-//        val permissions = user.permissions
-//        if (permissions.manageUsers != null) {
-//            val newPermissions = permissions.copy(admin = permissions.manageUsers, manageUsers = null)
-//            UserService.update(user.id, newPermissions = newPermissions)
-//        }
-//    }
+    SystemLogService.configureRouting(this)
+    AdminLogService.configureRouting(this)
 
     configureStreaming()
     configureDoor()

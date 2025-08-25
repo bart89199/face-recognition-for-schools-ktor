@@ -1,4 +1,5 @@
 ktor:
+  development: true
   application:
     modules:
       - com.batr.ApplicationKt.module
@@ -7,7 +8,7 @@ ktor:
 postgres:
   url: "jdbc:postgresql://localhost:5432/face-recognition"
   user: postgres
-  password: $DP_PASSWORD
+  password: $DB_PASSWORD
 googleapi:
   auth:
     google-client-secret: $GOOGLE_CLIENT_SECRET

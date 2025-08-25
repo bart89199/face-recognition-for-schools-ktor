@@ -87,8 +87,8 @@ object SessionService {
         SessionTable.selectAll().where { SessionTable.token eq token }.toModel().firstOrNull()
     }?.update()
 
-    suspend fun getUserSessions(id: Int, active: Boolean?): List<UserSession> = suspendTransaction {
-        SessionTable.selectAll().where((SessionTable.userId eq id) and active(active)).toModel()
+    suspend fun getUserSessions(userId: Int, active: Boolean?): List<UserSession> = suspendTransaction {
+        SessionTable.selectAll().where((SessionTable.userId eq userId) and active(active)).toModel()
     }.update().active(active)
 
     suspend fun deleteById(id: Int): Boolean = suspendTransaction {

@@ -6,6 +6,8 @@ import com.batr.auth.session.check
 import com.batr.auth.session.delete
 import com.batr.auth.user.UserService
 import com.batr.auth.user.newSession
+import com.batr.log.AdminLogType
+import com.batr.log.log
 import com.batr.receiveOrRespond
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -24,6 +26,7 @@ fun Application.configureLoginRouting() {
         }
         get("/logout") {
             val session = call.getSession(false) ?: return@get
+            session.log(AdminLogType.USER_LOGOUT, "user logout")
             session.delete()
             call.sessions.clear<CookieUserSession>()
             call.respondRedirect(HOME_PATH)
@@ -40,6 +43,7 @@ fun Application.configureLoginRouting() {
                 return@post
             }
             val session = user.newSession(call, longLogin)
+            session.log(AdminLogType.USER_LOGIN, "user login")
             call.sessions.set(CookieUserSession(session.token))
             call.respond(HttpStatusCode.OK)
         }

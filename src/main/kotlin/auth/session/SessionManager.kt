@@ -4,6 +4,8 @@ import com.batr.auth.getSession
 import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
 import com.batr.auth.user.UserService
+import com.batr.log.AdminLogType
+import com.batr.log.log
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -36,6 +38,12 @@ fun Application.configureSessionManagement() {
                 }
                 delete {
                     val session = call.getSession() ?: return@delete
+                    session.log(
+                        AdminLogType.SESSION_DELETE,
+                        "delete all own sessions: [${
+                            session.getAllUserSessions(true).joinToString { it.id.toString() }
+                        }]"
+                    )
                     val res = SessionService.deleteByUserId(session.userId)
                     call.respond(HttpStatusCode.OK, res)
                 }
@@ -43,7 +51,7 @@ fun Application.configureSessionManagement() {
                     val session = call.getSession() ?: return@delete
                     val id = call.parameters["id"]?.toIntOrNull()
                     if (id == null) {
-                        call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                        call.respond(HttpStatusCode.BadRequest, "can't read id")
                         return@delete
                     }
                     val aim = SessionService.getById(id)
@@ -56,6 +64,7 @@ fun Application.configureSessionManagement() {
                         call.respond(HttpStatusCode.BadRequest, "incorrect id")
                         return@delete
                     }
+                    session.log(AdminLogType.SESSION_DELETE, "delete own session: $id")
                     SessionService.deleteById(id)
                     call.respond(HttpStatusCode.OK)
                 }
@@ -65,25 +74,32 @@ fun Application.configureSessionManagement() {
                     get {
                         val id = call.parameters["id"]?.toIntOrNull()
                         if (id == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                            call.respond(HttpStatusCode.BadRequest, "can't read id")
                             return@get
                         }
                         val active = call.queryParameters["active"]?.toBoolean()
                         val user = UserService.getById(id)
                         if (user == null) {
-                            call.respond(HttpStatusCode.Companion.NotFound)
+                            call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
                         val sessions = user.getAllSessions(active).map { it.toRaw() }
                         call.respond(sessions)
                     }
                     delete {
-                        val id = call.parameters["id"]?.toIntOrNull()
-                        if (id == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                        val session = call.getSession() ?: return@delete
+                        val userId = call.parameters["id"]?.toIntOrNull()
+                        if (userId == null) {
+                            call.respond(HttpStatusCode.BadRequest, "can't read id")
                             return@delete
                         }
-                        val res = SessionService.deleteByUserId(id)
+                        session.log(
+                            AdminLogType.SESSION_DELETE,
+                            "delete all sessions of user: $userId [${
+                                SessionService.getUserSessions(userId, true).joinToString { it.id.toString() }
+                            }]"
+                        )
+                        val res = SessionService.deleteByUserId(userId)
                         call.respond(HttpStatusCode.OK, res)
                     }
                 }
@@ -94,33 +110,37 @@ fun Application.configureSessionManagement() {
                         call.respond(sessions)
                     }
                     delete {
+                        val session = call.getSession() ?: return@delete
+                        session.log(AdminLogType.SESSION_DELETE, "delete all sessions: [${SessionService.getAll(true).joinToString { it.id.toString() }}]")
                         val res = SessionService.deleteAll()
                         call.respond(HttpStatusCode.OK, res)
                     }
                     get("/{id}") {
                         val id = call.parameters["id"]?.toIntOrNull()
                         if (id == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                            call.respond(HttpStatusCode.BadRequest, "can't read id")
                             return@get
                         }
                         val session = SessionService.getById(id)?.toRaw()
                         if (session == null) {
-                            call.respond(HttpStatusCode.Companion.NotFound)
+                            call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
                         call.respond(session)
                     }
                     delete("/{id}") {
+                        val session = call.getSession() ?: return@delete
                         val id = call.parameters["id"]?.toIntOrNull()
                         if (id == null) {
-                            call.respond(HttpStatusCode.Companion.BadRequest, "can't read id")
+                            call.respond(HttpStatusCode.BadRequest, "can't read id")
                             return@delete
                         }
                         val status = SessionService.deleteById(id)
                         if (!status) {
-                            call.respond(HttpStatusCode.Companion.NotFound)
+                            call.respond(HttpStatusCode.NotFound)
                             return@delete
                         }
+                        session.log(AdminLogType.SESSION_DELETE, "delete session: $id")
                         call.respond(HttpStatusCode.OK)
                     }
                 }
