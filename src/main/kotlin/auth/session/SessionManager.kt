@@ -4,6 +4,7 @@ import com.batr.auth.getSession
 import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
 import com.batr.auth.user.UserService
+import com.batr.fetchQueryInts
 import com.batr.log.AdminLogType
 import com.batr.log.log
 import io.ktor.http.*
@@ -49,28 +50,28 @@ fun Application.configureSessionManagement() {
                 }
                 delete("/{id}") {
                     val session = call.getSession() ?: return@delete
-                    val id = call.parameters["id"]?.toIntOrNull()
-                    if (id == null) {
-                        call.respond(HttpStatusCode.BadRequest, "can't read id")
+                    val ids = fetchQueryInts("id") ?: return@delete
+                    if (ids.isEmpty()) {
+                        call.respond(HttpStatusCode.BadRequest, "id is required")
                         return@delete
                     }
-                    val aim = SessionService.getById(id)
-                    if (aim == null) {
+                    val aim = SessionService.getByIds(ids)
+                    if (aim.isEmpty()) {
                         call.respond(HttpStatusCode.NotFound)
                         return@delete
                     }
 
-                    if (aim.userId != session.userId) {
+                    if (aim.any { it.userId != session.userId }) {
                         call.respond(HttpStatusCode.BadRequest, "incorrect id")
                         return@delete
                     }
-                    session.log(AdminLogType.SESSION_DELETE, "delete own session: $id")
-                    SessionService.deleteById(id)
+                    session.log(AdminLogType.SESSION_DELETE, "delete own sessions: ${ids.joinToString()}")
+                    SessionService.deleteByIds(ids)
                     call.respond(HttpStatusCode.OK)
                 }
             }
             setPermissions(UserPermissions(admin = true)) {
-                route("/auth/manage/user/{id}/sessions") {
+                route("/api/manage/user/{id}/sessions") {
                     get {
                         val id = call.parameters["id"]?.toIntOrNull()
                         if (id == null) {
@@ -103,7 +104,7 @@ fun Application.configureSessionManagement() {
                         call.respond(HttpStatusCode.OK, res)
                     }
                 }
-                route("/auth/manage/session") {
+                route("/api/manage/session") {
                     get {
                         val active = call.queryParameters["active"]?.toBoolean()
                         val sessions = SessionService.getAll(active).map { it.toRaw() }
@@ -111,18 +112,21 @@ fun Application.configureSessionManagement() {
                     }
                     delete {
                         val session = call.getSession() ?: return@delete
-                        session.log(AdminLogType.SESSION_DELETE, "delete all sessions: [${SessionService.getAll(true).joinToString { it.id.toString() }}]")
+                        session.log(
+                            AdminLogType.SESSION_DELETE,
+                            "delete all sessions: [${SessionService.getAll(true).joinToString { it.id.toString() }}]"
+                        )
                         val res = SessionService.deleteAll()
                         call.respond(HttpStatusCode.OK, res)
                     }
                     get("/{id}") {
-                        val id = call.parameters["id"]?.toIntOrNull()
-                        if (id == null) {
-                            call.respond(HttpStatusCode.BadRequest, "can't read id")
+                        val ids = fetchQueryInts("id") ?: return@get
+                        if (ids.isEmpty()) {
+                            call.respond(HttpStatusCode.BadRequest, "id is required")
                             return@get
                         }
-                        val session = SessionService.getById(id)?.toRaw()
-                        if (session == null) {
+                        val session = SessionService.getByIds(ids).map { it.toRaw() }
+                        if (session.isEmpty()) {
                             call.respond(HttpStatusCode.NotFound)
                             return@get
                         }
@@ -130,18 +134,18 @@ fun Application.configureSessionManagement() {
                     }
                     delete("/{id}") {
                         val session = call.getSession() ?: return@delete
-                        val id = call.parameters["id"]?.toIntOrNull()
-                        if (id == null) {
+                        val ids = fetchQueryInts("id") ?: return@delete
+                        if (ids.isEmpty()) {
                             call.respond(HttpStatusCode.BadRequest, "can't read id")
                             return@delete
                         }
-                        val status = SessionService.deleteById(id)
-                        if (!status) {
+                        val status = SessionService.deleteByIds(ids)
+                        if (status == 0) {
                             call.respond(HttpStatusCode.NotFound)
                             return@delete
                         }
-                        session.log(AdminLogType.SESSION_DELETE, "delete session: $id")
-                        call.respond(HttpStatusCode.OK)
+                        session.log(AdminLogType.SESSION_DELETE, "delete sessions: ${ids.joinToString()}")
+                        call.respond(HttpStatusCode.OK, status)
                     }
                 }
             }
@@ -149,13 +153,22 @@ fun Application.configureSessionManagement() {
     }
 }
 
+
 @Serializable
 data class RawSession(
     val id: Int,
+    val userId: Int,
     val active: Boolean,
     val expiresAt: Long,
     val requestData: RequestData,
     val googleLogin: Boolean,
 )
 
-fun UserSession.toRaw() = RawSession(id, active, expiresAt, requestData, googleAccess != null)
+fun UserSession.toRaw() = RawSession(
+    id = id,
+    userId = userId,
+    active = active,
+    expiresAt = expiresAt,
+    requestData = requestData,
+    googleLogin = googleAccess != null
+)

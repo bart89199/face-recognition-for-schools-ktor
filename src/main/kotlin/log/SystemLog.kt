@@ -1,6 +1,8 @@
 package com.batr.log
 
 import com.batr.database.Database.suspendTransaction
+import io.ktor.server.application.Application
+import io.ktor.util.reflect.typeInfo
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.insert
@@ -47,6 +49,8 @@ object SystemLogService :
             message = it[SystemLogTable.message]
         )
     }
+
+    fun configureRouting(app: Application) = app.configureLogManagers("api/logs/system", typeInfo<List<SystemLog>>())
 
     suspend fun log(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit = suspendTransaction {
         table.insert {

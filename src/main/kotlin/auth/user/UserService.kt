@@ -11,6 +11,7 @@ import io.ktor.server.application.ApplicationCall
 import org.jetbrains.exposed.exceptions.ExposedSQLException
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 
 object UserService {
@@ -44,12 +45,24 @@ object UserService {
         UserTable.selectAll().where { UserTable.id eq id }.toModel().firstOrNull()
     }
 
+    suspend fun getByIds(id: List<Int>): List<User> = suspendTransaction {
+        UserTable.selectAll().where { UserTable.id inList id }.toModel()
+    }
+
     suspend fun getByEmail(email: String): User? = suspendTransaction {
         UserTable.selectAll().where { UserTable.email eq email }.toModel().firstOrNull()
     }
 
+    suspend fun getByEmails(email: List<String>): List<User> = suspendTransaction {
+        UserTable.selectAll().where { UserTable.email inList email }.toModel()
+    }
+
     suspend fun getByName(name: String): List<User> = suspendTransaction {
         UserTable.selectAll().where { UserTable.name eq name }.toModel()
+    }
+
+    suspend fun getByNames(name: List<String>): List<User> = suspendTransaction {
+        UserTable.selectAll().where { UserTable.name inList name }.toModel()
     }
 
     suspend fun findLikeEmail(email: String): List<User> = suspendTransaction {
@@ -60,8 +73,12 @@ object UserService {
         UserTable.selectAll().where { UserTable.name like "%$name%" }.toModel()
     }
 
-    suspend fun delete(id: Int): Boolean = suspendTransaction {
+    suspend fun deleteById(id: Int): Boolean = suspendTransaction {
         UserTable.deleteWhere { UserTable.id eq id } == 1
+    }
+
+    suspend fun deleteByIds(id: List<Int>): Int = suspendTransaction {
+        UserTable.deleteWhere { UserTable.id inList id }
     }
 
     suspend fun checkIsRoot(id: Int): Boolean? = suspendTransaction {
@@ -106,12 +123,20 @@ object UserService {
     }
 }
 
-suspend fun User.newSession(requestData: RequestData, longLogin: Boolean = false, googleAccess: GoogleAccess? = null): UserSession =
+suspend fun User.newSession(
+    requestData: RequestData,
+    longLogin: Boolean = false,
+    googleAccess: GoogleAccess? = null
+): UserSession =
     SessionService.create(id, longLogin = longLogin, requestData = requestData, googleAccess = googleAccess)
 
-suspend fun User.newSession(call: ApplicationCall, longLogin: Boolean = false, googleAccess: GoogleAccess? = null): UserSession =
+suspend fun User.newSession(
+    call: ApplicationCall,
+    longLogin: Boolean = false,
+    googleAccess: GoogleAccess? = null
+): UserSession =
     SessionService.create(id, longLogin = longLogin, requestData = call.getRequestData(), googleAccess = googleAccess)
 
 suspend fun User.isRootOrNull(): Boolean? = UserService.checkIsRoot(id)
-suspend fun User.isRoot(): Boolean = isRootOrNull() ?: throw IllegalStateException("Can`t find user")
+suspend fun User.isRoot(): Boolean = isRootOrNull() ?: throw IllegalArgumentException("Can`t find user")
 suspend fun UserSession.isRoot(): Boolean? = UserService.checkIsRoot(userId)

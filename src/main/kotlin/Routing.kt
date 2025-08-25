@@ -57,3 +57,12 @@ suspend inline fun <reified T : Any> ApplicationCall.receiveOrRespond(
 }
 
 fun Application.getResource(path: String) = environment.classLoader.getResource(path)?.file?.let { File(it) }
+suspend fun RoutingContext.fetchQueryInts(queryParameter: String): List<Int>? = try {
+    call.request.queryParameters[queryParameter]?.split(",")?.map { it.toInt() } ?: emptyList()
+} catch (_: NumberFormatException) {
+    call.respond(HttpStatusCode.BadRequest, "Invalid id")
+    null
+}
+
+fun RoutingContext.fetchQueryStrings(queryParameter: String): List<String> =
+    call.request.queryParameters[queryParameter]?.split(",") ?: emptyList()

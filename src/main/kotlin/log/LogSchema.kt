@@ -16,6 +16,8 @@ import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.util.reflect.TypeInfo
+import io.ktor.util.reflect.typeInfo
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.Query
@@ -59,18 +61,16 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
             SchemaUtils.create(table)
         }
     }
-
-    fun configureRouting(app: Application) = app.configureLogManagers()
-    protected fun Application.configureLogManagers() {
+    protected fun Application.configureLogManagers(route: String, logListTypeInfo: TypeInfo) {
         routing {
             authenticate("session-auth") {
                 setPermissions(UserPermissions(logs = true)) {
-                    route("api/logs/system") {
+                    route(route) {
                         get {
                             val download = call.request.queryParameters["download"].toBoolean()
                             val logs = fetchLogs() ?: return@get
                             if (!download) {
-                                call.respond(logs)
+                                call.respond(logs, logListTypeInfo)
                                 return@get
                             }
                             val fileName = logsFileName() ?: return@get

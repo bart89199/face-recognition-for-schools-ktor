@@ -4,6 +4,8 @@ package com.batr.auth.user
 import com.batr.auth.getSession
 import com.batr.auth.session.getUser
 import com.batr.auth.setPermissions
+import com.batr.fetchQueryInts
+import com.batr.fetchQueryStrings
 import com.batr.log.AdminLogType
 import com.batr.log.log
 import com.batr.receiveOrRespond
@@ -62,7 +64,7 @@ fun Application.configureUserManagement() {
             }
 
             setPermissions(UserPermissions(admin = true)) {
-                route("/auth/manage/user") {
+                route("/api/manage/user") {
 
                     get {
                         val users = UserService.getAll().map { it.toNoPass() }
@@ -128,11 +130,11 @@ fun Application.configureUserManagement() {
                             if (status) {
                                 session.log(
                                     AdminLogType.USER_UPDATE, "update user $id (" +
-                                        "${userUpdate.name?.let { name -> "name: ${user.name} -> $name" }} " +
-                                        "${userUpdate.email?.let { email -> "email: ${user.email} -> $email" }} " +
-                                        "${userUpdate.password?.let { "new password" }} " +
-                                        "${userUpdate.root?.let { root -> "root: ${user.root} -> $root" }} " +
-                                        "${userUpdate.permissions?.let { perm -> "permissions: ${user.permissions} -> $perm" }})"
+                                            "${userUpdate.name?.let { name -> "name: ${user.name} -> $name" }} " +
+                                            "${userUpdate.email?.let { email -> "email: ${user.email} -> $email" }} " +
+                                            "${userUpdate.password?.let { "new password" }} " +
+                                            "${userUpdate.root?.let { root -> "root: ${user.root} -> $root" }} " +
+                                            "${userUpdate.permissions?.let { perm -> "permissions: ${user.permissions} -> $perm" }})"
                                 )
                                 call.respond(HttpStatusCode.OK)
                             } else {
@@ -145,41 +147,42 @@ fun Application.configureUserManagement() {
 
                         delete {
                             val session = call.getSession() ?: return@delete
-                            val id = call.parameters["id"]?.toIntOrNull()
-                            if (id == null) {
-                                call.respond(HttpStatusCode.BadRequest, "can't read id")
+                            val id = fetchQueryInts("id") ?: return@delete
+                            if (id.isEmpty()) {
+                                call.respond(HttpStatusCode.BadRequest, "id is required")
                                 return@delete
                             }
-                            val user = UserService.getById(id)
-                            if (user == null) {
+                            val users = UserService.getByIds(id)
+                            if (users.isEmpty()) {
                                 call.respond(HttpStatusCode.NotFound, "user not found")
                                 return@delete
                             }
-                            if (user.isRoot()) {
-                                if (session.isRoot() != true) {
-                                    call.respond(HttpStatusCode.Forbidden)
-                                    return@delete
+                            users.forEach { user ->
+                                if (user.isRoot()) {
+                                    if (session.isRoot() != true) {
+                                        call.respond(HttpStatusCode.Forbidden)
+                                        return@delete
+                                    }
                                 }
                             }
-                            if (UserService.delete(id)) {
+                            val res = UserService.deleteByIds(id)
+                            users.forEach { user ->
                                 session.log(
                                     AdminLogType.USER_DELETE,
-                                    "delete user $id (name = ${user.name}, email = ${user.email}, root = ${user.root}), permissions = ${user.permissions})"
+                                    "delete user ${user.id} (name = ${user.name}, email = ${user.email}, root = ${user.root}), permissions = ${user.permissions})"
                                 )
-                                call.respond(HttpStatusCode.OK)
-                            } else {
-                                call.respond(HttpStatusCode.NotFound)
                             }
+                            call.respond(HttpStatusCode.OK, res)
                         }
 
                         get {
-                            val id = call.parameters["id"]?.toIntOrNull()
-                            if (id == null) {
-                                call.respond(HttpStatusCode.BadRequest, "can't read id")
+                            val ids = fetchQueryInts("id") ?: return@get
+                            if (ids.isEmpty()) {
+                                call.respond(HttpStatusCode.BadRequest, "id is required")
                                 return@get
                             }
-                            val user = UserService.getById(id)?.toNoPass()
-                            if (user == null) {
+                            val user = UserService.getByIds(ids).map { it.toNoPass() }
+                            if (user.isEmpty()) {
                                 call.respond(HttpStatusCode.NotFound)
                                 return@get
                             }
@@ -216,12 +219,12 @@ fun Application.configureUserManagement() {
                     }
 
                     get("/byName/{name}") {
-                        val name = call.parameters["name"]
-                        if (name == null) {
+                        val names = fetchQueryStrings("name")
+                        if (names.isEmpty()) {
                             call.respond(HttpStatusCode.BadRequest, "name is required")
                             return@get
                         }
-                        val user = UserService.getByName(name).map { it.toNoPass() }
+                        val user = UserService.getByNames(names).map { it.toNoPass() }
                         if (user.isEmpty()) {
                             call.respond(HttpStatusCode.NotFound)
                             return@get
@@ -230,13 +233,13 @@ fun Application.configureUserManagement() {
                     }
 
                     get("/byEmail/{email}") {
-                        val email = call.parameters["email"]
-                        if (email == null) {
+                        val emails = fetchQueryStrings("email")
+                        if (emails.isEmpty()) {
                             call.respond(HttpStatusCode.BadRequest, "email is required")
                             return@get
                         }
-                        val user = UserService.getByEmail(email)?.toNoPass()
-                        if (user == null) {
+                        val user = UserService.getByEmails(emails).map { it.toNoPass() }
+                        if (user.isEmpty()) {
                             call.respond(HttpStatusCode.NotFound)
                             return@get
                         }

@@ -9,6 +9,7 @@ import io.ktor.server.config.*
 import io.ktor.server.plugins.origin
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 import kotlin.properties.Delegates
 
@@ -83,18 +84,36 @@ object SessionService {
         SessionTable.selectAll().where { SessionTable.id eq id }.toModel().firstOrNull()
     }?.update()
 
+    suspend fun getByIds(id: List<Int>): List<UserSession> = suspendTransaction {
+        SessionTable.selectAll().where { SessionTable.id inList id }.toModel()
+    }.update()
+
     suspend fun getByToken(token: String): UserSession? = suspendTransaction {
         SessionTable.selectAll().where { SessionTable.token eq token }.toModel().firstOrNull()
     }?.update()
 
+    suspend fun getByTokens(token: List<String>): List<UserSession> = suspendTransaction {
+        SessionTable.selectAll().where { SessionTable.token inList token }.toModel()
+    }.update()
+
     suspend fun getUserSessions(userId: Int, active: Boolean?): List<UserSession> = suspendTransaction {
         SessionTable.selectAll().where((SessionTable.userId eq userId) and active(active)).toModel()
+    }.update().active(active)
+
+    suspend fun getUsersSessions(userId: List<Int>, active: Boolean?): List<UserSession> = suspendTransaction {
+        SessionTable.selectAll().where((SessionTable.userId inList userId) and active(active)).toModel()
     }.update().active(active)
 
     suspend fun deleteById(id: Int): Boolean = suspendTransaction {
         SessionTable.update({ SessionTable.id eq id }) {
             it[SessionTable.active] = false
         } == 1
+    }
+
+    suspend fun deleteByIds(id: List<Int>): Int = suspendTransaction {
+        SessionTable.update({ SessionTable.id inList id }) {
+            it[SessionTable.active] = false
+        }
     }
 
     suspend fun deleteAll(): Int = suspendTransaction {
@@ -109,10 +128,22 @@ object SessionService {
         }
     }
 
+    suspend fun deleteByUsersId(userId: List<Int>): Int = suspendTransaction {
+        SessionTable.update({ (SessionTable.userId inList userId) and (SessionTable.active eq true) }) {
+            it[SessionTable.active] = false
+        }
+    }
+
     suspend fun deleteByToken(token: String): Boolean = suspendTransaction {
         SessionTable.update({ SessionTable.token eq token }) {
             it[SessionTable.active] = false
         } == 1
+    }
+
+    suspend fun deleteByTokens(token: List<String>): Int = suspendTransaction {
+        SessionTable.update({ SessionTable.token inList token }) {
+            it[SessionTable.active] = false
+        }
     }
 
 }
@@ -123,7 +154,8 @@ suspend fun CookieUserSession.getSession(): UserSession? = SessionService.getByT
 
 suspend fun UserSession.getUserOrNull(): User? = UserService.getById(userId)
 
-suspend fun UserSession.getUser(): User = getUserOrNull() ?: throw IllegalArgumentException("session user does not exist")
+suspend fun UserSession.getUser(): User =
+    getUserOrNull() ?: throw IllegalArgumentException("session user does not exist")
 
 suspend fun CookieUserSession.delete(): Boolean = SessionService.deleteByToken(token)
 
@@ -150,7 +182,8 @@ suspend fun UserSession.removeAllUserSessions(): Int = SessionService.deleteByUs
 
 suspend fun User.getAllSessions(active: Boolean?): List<UserSession> = SessionService.getUserSessions(id, active)
 
-suspend fun UserSession.getAllUserSessions(active: Boolean?): List<UserSession> = SessionService.getUserSessions(userId, active)
+suspend fun UserSession.getAllUserSessions(active: Boolean?): List<UserSession> =
+    SessionService.getUserSessions(userId, active)
 
 fun ApplicationCall.getRequestData(): RequestData =
     RequestData(System.currentTimeMillis(), request.origin.remoteAddress, request.headers["User-Agent"])

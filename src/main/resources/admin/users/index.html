@@ -9,141 +9,172 @@
         :root { font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif; color-scheme: light dark; }
         * { box-sizing: border-box; }
         body { margin:0; background:#f5f7fb; color:#0f172a; }
-        header { position:sticky; top:0; background:#1e293b; color:#f1f5f9; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px; z-index:40; }
+        header { position:sticky; top:0; background:#1e293b; color:#f1f5f9; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px; z-index:50; }
         header h1 { margin:0; font-size:1.1rem; font-weight:600; letter-spacing:.5px; }
         .logout-btn { background:#dc2626; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-weight:600; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:6px; }
         .logout-btn:hover { background:#b91c1c; }
-        main { max-width:1700px; margin:24px auto 60px; padding:0 28px 40px; display:flex; flex-direction:column; gap:28px; }
-        .layout { display:grid; gap:28px; grid-template-columns:380px 1fr 480px; align-items:start; }
-        @media (max-width:1700px){ .layout { grid-template-columns:360px 1fr; } .sessions-panel { grid-column:1 / -1; } }
-        @media (max-width:1100px){ .layout { grid-template-columns:1fr; } }
-        .panel { background:#fff; padding:20px 22px 26px; border-radius:18px; box-shadow:0 4px 18px rgba(0,0,0,.05); position:relative; }
-        h2 { margin:0 0 14px; font-size:1rem; }
+        main { max-width:1800px; margin:0 auto 80px; padding:0 28px 40px; }
+
+        /* Tabs */
+        .tabs-bar {
+            position:sticky; top:58px; background:#fff; z-index:40; display:flex; gap:4px;
+            padding:10px 6px 0; margin:0 -28px 20px;
+            overflow-x:auto; overflow-y:hidden;
+            border-bottom:1px solid #e2e8f0;
+            scrollbar-width:thin;
+        }
+        .tabs-bar::-webkit-scrollbar { height:6px; }
+        .tabs-bar::-webkit-scrollbar-track { background:transparent; }
+        .tabs-bar::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
+        .tab-btn {
+            background:transparent; border:none; cursor:pointer; padding:10px 18px 12px;
+            font:inherit; font-size:.78rem; font-weight:600; letter-spacing:.03em; color:#475569;
+            border-radius:10px 10px 0 0; position:relative; top:1px;
+            white-space:nowrap;
+        }
+        .tab-btn:hover { background:#f1f5f9; color:#1e293b; }
+        .tab-btn.active { background:#2563eb; color:#fff; }
+        .tab-panel { display:none; animation:fade .18s ease; }
+        .tab-panel.active { display:block; }
+        @keyframes fade { from { opacity:0; transform:translateY(4px);} to { opacity:1; transform:translateY(0);} }
+
+        .panel { background:#fff; padding:22px 24px 26px 24px; border-radius:20px; box-shadow:0 4px 18px rgba(0,0,0,.06); position:relative; }
+        h2 { margin:0 0 18px; font-size:1rem; }
+
         form { display:flex; flex-direction:column; gap:14px; }
-        label { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; display:flex; flex-direction:column; gap:4px; color:#475569; }
+        label { font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; display:flex; flex-direction:column; gap:5px; color:#475569; }
         input[type=text], input[type=email], input[type=password] {
-            border:1px solid #cbd5e1; border-radius:8px; padding:9px 11px; font:inherit; background:#fff;
+            border:1px solid #cbd5e1; border-radius:10px; padding:9px 12px; font:inherit; background:#fff;
         }
         input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.35); }
-        button { font:inherit; border:none; cursor:pointer; border-radius:8px; padding:8px 14px; font-weight:600; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:6px; }
+        input::placeholder { color:#94a3b8; }
+        button { font:inherit; border:none; cursor:pointer; border-radius:10px; padding:9px 15px; font-weight:600; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:6px; }
         button.secondary { background:#475569; }
         button.danger { background:#dc2626; }
-        button.danger.outline { border:1px solid #dc2626; background:transparent; color:#b91c1c; }
-        button.danger.outline:hover { background:#fee2e2; }
         button.outline { background:#fff; color:#1e293b; border:1px solid #cbd5e1; }
         button.outline:hover { background:#f1f5f9; }
+        button.danger.outline { background:#fff; border-color:#dc2626; color:#b91c1c; }
+        button.danger.outline:hover { background:#fee2e2; }
         button:disabled { opacity:.55; cursor:not-allowed; }
-        .perm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:6px 12px; }
-        .perm-item { font-size:.63rem; line-height:1.2; display:flex; gap:6px; background:#f1f5f9; padding:6px 8px; border-radius:8px; align-items:flex-start; }
-        .inline-field { display:flex; align-items:center; gap:8px; font-size:.7rem; }
+        .inline-field { display:flex; align-items:center; gap:8px; font-size:.72rem; }
         .inline-field input { margin:0; }
-        .actions-inline { display:flex; gap:10px; flex-wrap:wrap; }
-        table { width:100%; border-collapse:collapse; background:#fff; border-radius:16px; overflow:hidden; }
-        th, td { padding:8px 10px; font-size:.75rem; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; }
-        th { background:#f1f5f9; font-weight:600; font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; }
+
+        .perm-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:7px 12px; }
+        .perm-item {
+            font-size:.62rem; line-height:1.25; display:flex; gap:6px; background:#f1f5f9;
+            padding:6px 8px; border-radius:9px; align-items:flex-start;
+            border:1px solid #cbd5e1; transition:.16s background,.16s border-color,.16s color;
+            cursor:pointer;
+        }
+        .perm-item input { margin-top:2px; }
+        .perm-item.checked { background:#2563eb; color:#fff; border-color:#2563eb; }
+        .perm-item.checked span { font-weight:600; }
+
+        table { width:100%; border-collapse:separate; border-spacing:0; background:#fff; border-radius:16px; overflow:hidden; font-size:.74rem; }
+        th, td { padding:8px 10px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; }
+        th { background:#f1f5f9; font-weight:600; font-size:.64rem; text-transform:uppercase; letter-spacing:.06em; }
         tbody tr:last-child td { border-bottom:none; }
-        .badge { background:#2563eb; color:#fff; padding:2px 6px 3px; border-radius:999px; font-size:.55rem; display:inline-block; }
+        .truncate { max-width:210px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .truncate-wide { max-width:380px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .row-actions { display:flex; flex-wrap:wrap; gap:6px; }
+        .badge { background:#2563eb; color:#fff; padding:3px 7px 4px; border-radius:999px; font-size:.55rem; display:inline-block; letter-spacing:.03em; }
         .badge-root { background:#9333ea; }
         .badge-google { background:#16a34a; }
-        .row-actions { display:flex; flex-wrap:wrap; gap:5px; }
-        .truncate { max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .truncate-wide { max-width:340px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-        .muted { color:#64748b; font-size:.65rem; letter-spacing:.04em; }
-        .error { background:#fee2e2; color:#991b1b; padding:10px 12px; border-radius:10px; font-size:.7rem; display:none; }
-        .success { background:#dcfce7; color:#166534; padding:10px 12px; border-radius:10px; font-size:.7rem; display:none; }
+        .badge-inactive { background:#64748b; }
+        .badge-active { background:#059669; }
+        .error { background:#fee2e2; color:#991b1b; padding:12px 14px; border-radius:12px; font-size:.7rem; display:none; }
+        .success { background:#dcfce7; color:#166534; padding:12px 14px; border-radius:12px; font-size:.7rem; display:none; }
         .error.show, .success.show { display:block; }
-        .filters { display:flex; flex-direction:column; gap:12px; margin-bottom:18px; }
-        .filter-row { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
-        .spinner { width:14px; height:14px; border:3px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
-        @keyframes spin { to { transform:rotate(360deg); } }
-        .table-wrapper { overflow:auto; max-height:60vh; border-radius:16px; }
-        .sessions-table-wrapper { overflow:auto; max-height:420px; border-radius:14px; }
-        .section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; }
-        .divider { height:1px; background:#e2e8f0; margin:18px 0; }
-        .tag { background:#e2e8f0; color:#334155; padding:3px 7px 4px; font-size:.55rem; border-radius:6px; letter-spacing:.05em; text-transform:uppercase; }
-        .empty { padding:10px 0; font-size:.65rem; color:#64748b; }
-        .nowrap { white-space:nowrap; }
-        .sticky-tools { position:sticky; top:-20px; background:#fff; padding:0 0 10px; z-index:5; }
+        .filters { display:flex; flex-direction:column; gap:14px; margin-bottom:16px; }
+        .filter-row { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+        .muted { color:#64748b; font-size:.64rem; letter-spacing:.04em; }
+        .tag { background:#e2e8f0; color:#334155; padding:4px 9px 5px; font-size:.58rem; border-radius:7px; letter-spacing:.05em; text-transform:uppercase; }
+        .spinner { width:16px; height:16px; border:3px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg);} }
+
+        .toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; }
+        select { font:inherit; font-size:.7rem; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#fff; }
+        select:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.35); }
+
+        /* Add bottom spacing to avoid rounded clip overlap */
+        .sessions-table-wrapper, .users-table-wrapper {
+            overflow:auto; max-height:62vh; border-radius:16px;
+            margin-bottom:14px; /* extra space so footer text not visually clipped by radius */
+            background:#fff;
+        }
+
+        /* Footer counters spacing & alignment */
+        .table-counter {
+            padding:2px 4px 0;
+            margin-top:2px;
+            position:relative;
+            z-index:1;
+        }
+
+        .section-head { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:0 0 12px; }
+        .hidden { display:none !important; }
+
+        .flex { display:flex; }
+        .gap-10 { gap:10px; }
+        .wrap { flex-wrap:wrap; }
+
+        .small-btn { font-size:.62rem; padding:6px 10px; line-height:1.1; }
+
+        /* Dark theme adjustments */
         @media (prefers-color-scheme: dark) {
             body { background:#0f172a; color:#f1f5f9; }
+            header { background:#0f172a; }
+            .tabs-bar { background:#0f172a; border-color:#334155; }
             .panel { background:#1e293b; box-shadow:0 4px 22px rgba(0,0,0,.55); }
-            input[type=text],input[type=email],input[type=password] { background:#0f172a; border-color:#334155; color:#f1f5f9; }
-            .perm-item { background:#334155; }
+            input[type=text],input[type=email],input[type=password], select { background:#0f172a; border-color:#334155; color:#f1f5f9; }
+            input::placeholder { color:#94a3b8; }
+            .inline-field label { color:#f1f5f9 !important; text-transform:none; letter-spacing:0; font-size:.75rem; }
+            .perm-item { background:#334155; border-color:#475569; color:#e2e8f0; }
+            .perm-item.checked { background:#2563eb; border-color:#2563eb; color:#fff; }
             table, th, td { background:#1e293b; border-color:#334155; }
             th { background:#0f172a; }
             button.outline { background:#1e293b; color:#f1f5f9; border-color:#334155; }
             button.outline:hover { background:#334155; }
             .error { background:#7f1d1d; color:#fee2e2; }
             .success { background:#14532d; color:#dcfce7; }
-            .divider { background:#334155; }
             .tag { background:#334155; color:#e2e8f0; }
+            .muted { color:#94a3b8; }
+            .sessions-table-wrapper, .users-table-wrapper { background:#1e293b; }
         }
-        .sessions-panel-loading::after {
+
+        .loading-overlay::after {
             content:''; position:absolute; inset:0; background:rgba(255,255,255,.55); backdrop-filter:blur(1px);
         }
-        .sessions-panel-loading::before {
-            content:''; position:absolute; top:50%; left:50%; width:34px; height:34px;
-            margin:-17px 0 0 -17px; border:4px solid #bae6fd; border-top-color:#0284c7; border-radius:50%; animation:spin .7s linear infinite;
+        .loading-overlay::before {
+            content:''; position:absolute; top:50%; left:50%; width:40px; height:40px;
+            margin:-20px 0 0 -20px; border:4px solid #bae6fd; border-top-color:#0284c7; border-radius:50%; animation:spin .7s linear infinite;
         }
-        .small-btn { font-size:.6rem; padding:5px 8px; font-weight:500; }
-        .danger-text { color:#b91c1c; }
+
     </style>
 </head>
 <body>
 <header>
-    <h1>Пользователи</h1>
+    <h1>Пользователи и сессии</h1>
     <button class="logout-btn" onclick="location.href='/logout'">Выйти</button>
 </header>
 <main>
     <div id="err" class="error" role="alert"></div>
     <div id="ok" class="success" role="status"></div>
 
-    <div class="layout">
-        <!-- Форма -->
-        <div class="panel" id="userFormPanel">
-            <h2>Создать / обновить</h2>
-            <form id="userForm" novalidate>
-                <input type="hidden" id="editId"/>
+    <nav class="tabs-bar" aria-label="Основные разделы">
+        <button class="tab-btn active" data-tab="tab-users">Пользователи</button>
+        <button class="tab-btn" data-tab="tab-edit">Создать / Редактировать</button>
+        <button class="tab-btn" data-tab="tab-user-sessions">Сессии пользователя</button>
+        <button class="tab-btn" data-tab="tab-all-sessions">Все сессии</button>
+    </nav>
 
-                <label>
-                    Имя
-                    <input id="name" type="text" required placeholder="Имя пользователя"/>
-                </label>
-                <label>
-                    Email
-                    <input id="email" type="email" required placeholder="user@example.com"/>
-                </label>
-                <label>
-                    Пароль
-                    <input id="password" type="password" placeholder="Пароль (обязателен при создании)"/>
-                </label>
-
-                <div class="inline-field">
-                    <input type="checkbox" id="rootFlag">
-                    <label for="rootFlag" style="flex:none;text-transform:none;letter-spacing:0;font-size:.75rem;color:#1e293b;">
-                        root пользователь
-                    </label>
-                </div>
-
-                <div>
-                    <div class="muted" style="margin-bottom:6px;">Права доступа</div>
-                    <div class="perm-grid" id="permGrid"></div>
-                </div>
-
-                <div class="actions-inline">
-                    <button type="submit" id="saveBtn">Создать</button>
-                    <button type="button" id="resetBtn" class="secondary">Сброс</button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Пользователи -->
+    <!-- TAB: USERS LIST -->
+    <section id="tab-users" class="tab-panel active" tabindex="0">
         <div class="panel">
             <div class="section-head">
                 <h2 style="margin:0;">Список пользователей</h2>
-                <div class="tag" id="selectedUserTag" hidden>Выбран: <span id="selectedUserName"></span></div>
+                <div class="tag" id="selectedUserTag" hidden>Выбран: <span id="selectedUserName"></span> (<span id="selectedUserId"></span>)</div>
             </div>
-
             <div class="filters">
                 <div class="filter-row">
                     <label style="flex:1; min-width:220px;">
@@ -161,63 +192,149 @@
                 </div>
                 <div class="filter-row" style="justify-content:flex-start;">
                     <button type="button" id="showAllBtn" class="outline">Показать все</button>
+                    <button type="button" id="goCreateBtn" class="outline">Создать нового</button>
                 </div>
             </div>
-
-            <div class="table-wrapper">
+            <div class="users-table-wrapper">
                 <table id="usersTable">
                     <thead>
                     <tr>
-                        <th style="width:56px;">ID</th>
+                        <th style="width:70px;">ID</th>
                         <th>Имя</th>
                         <th>Email</th>
-                        <th style="width:60px;">Root</th>
-                        <th style="min-width:220px;">Права</th>
-                        <th style="width:148px;"></th>
+                        <th style="width:64px;">Root</th>
+                        <th style="min-width:260px;">Права</th>
+                        <th style="width:190px;"></th>
                     </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
             </div>
-            <div class="muted" id="countInfo" style="margin-top:10px;"></div>
+            <div class="muted table-counter" id="countInfo"></div>
         </div>
+    </section>
 
-        <!-- Сессии -->
-        <div class="panel sessions-panel sessions-panel-disabled" id="sessionsPanel" aria-live="polite">
-            <div class="section-head sticky-tools">
+    <!-- TAB: EDIT / CREATE USER -->
+    <section id="tab-edit" class="tab-panel" tabindex="0">
+        <div class="panel" id="userFormPanel">
+            <h2 id="formTitle">Создать пользователя</h2>
+            <form id="userForm" novalidate>
+                <input type="hidden" id="editId"/>
+
+                <label>
+                    ID (только чтение)
+                    <input id="showId" type="text" disabled placeholder="(новый)" />
+                </label>
+
+                <label>
+                    Имя
+                    <input id="name" type="text" required placeholder="Имя пользователя"/>
+                </label>
+                <label>
+                    Email
+                    <input id="email" type="email" required placeholder="user@example.com"/>
+                </label>
+                <label>
+                    Пароль
+                    <input id="password" type="password" placeholder="Пароль (обязателен при создании)"/>
+                </label>
+
+                <div class="inline-field">
+                    <input type="checkbox" id="rootFlag">
+                    <label for="rootFlag" style="flex:none;text-transform:none;letter-spacing:0;font-size:.75rem;">
+                        root пользователь
+                    </label>
+                </div>
+
+                <div>
+                    <div class="muted" style="margin-bottom:8px;">Права доступа</div>
+                    <div class="perm-grid" id="permGrid"></div>
+                </div>
+
+                <div class="flex gap-10 wrap">
+                    <button type="submit" id="saveBtn">Создать</button>
+                    <button type="button" id="resetBtn" class="secondary">Сброс</button>
+                    <button type="button" id="backToUsersBtn" class="outline">К списку</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- TAB: USER SESSIONS -->
+    <section id="tab-user-sessions" class="tab-panel" tabindex="0">
+        <div class="panel" id="userSessionsPanel">
+            <div class="section-head">
                 <h2 style="margin:0;">Сессии пользователя</h2>
-                <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                    <button type="button" id="refreshSessionsBtn" class="outline small-btn" disabled>Обновить</button>
-                    <button type="button" id="deleteUserSessionsBtn" class="danger outline small-btn" disabled title="Удалить все сессии пользователя">Удалить все</button>
+                <div class="flex gap-10 wrap">
+                    <select id="userSessionsFilter" title="Фильтр">
+                        <option value="active">Активные</option>
+                        <option value="inactive">Неактивные</option>
+                        <option value="all">Все</option>
+                    </select>
+                    <button id="refreshUserSessionsBtn" class="outline small-btn" type="button" disabled>Обновить</button>
+                    <button id="deleteUserSessionsBtn" class="danger outline small-btn" type="button" disabled>Удалить все</button>
                 </div>
             </div>
-            <div class="muted" id="sessionsInfo" style="margin-bottom:8px;">Выберите пользователя</div>
+            <div class="muted" id="userSessionsInfo" style="margin-bottom:10px;">Выберите пользователя во вкладке "Пользователи".</div>
 
             <div class="sessions-table-wrapper">
-                <table id="sessionsTable" style="display:none;">
+                <table id="userSessionsTable" style="display:none;">
                     <thead>
                     <tr>
-                        <th style="width:60px;">ID</th>
+                        <th style="width:70px;">ID</th>
+                        <th style="width:70px;">Активна</th>
                         <th>Логин</th>
                         <th>IP</th>
                         <th>User-Agent</th>
                         <th>Истекает</th>
-                        <th style="width:56px;">G</th>
-                        <th style="width:100px;"></th>
+                        <th style="width:60px;">G</th>
+                        <th style="width:110px;"></th>
                     </tr>
                     </thead>
                     <tbody></tbody>
                 </table>
-                <div id="sessionsEmpty" class="empty" style="display:none;">Нет активных сессий</div>
-            </div>
-
-            <div class="divider"></div>
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
-                <div class="muted" style="font-size:.58rem;">Глобальные операции</div>
-                <button type="button" id="deleteAllSessionsBtn" class="danger outline small-btn" title="Удалить абсолютно все сессии (всех пользователей)">Удалить все сессии (глобально)</button>
+                <div id="userSessionsEmpty" class="muted" style="display:none; padding:8px 4px;">Сессий нет</div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <!-- TAB: ALL SESSIONS -->
+    <section id="tab-all-sessions" class="tab-panel" tabindex="0">
+        <div class="panel" id="allSessionsPanel">
+            <div class="section-head">
+                <h2 style="margin:0;">Все сессии</h2>
+                <div class="flex gap-10 wrap">
+                    <select id="allSessionsFilter" title="Фильтр">
+                        <option value="active">Активные</option>
+                        <option value="inactive">Неактивные</option>
+                        <option value="all">Все</option>
+                    </select>
+                    <button id="refreshAllSessionsBtn" class="outline small-btn" type="button">Обновить</button>
+                    <button id="deleteAllSessionsBtn" class="danger outline small-btn" type="button" title="Удалить все сессии (глобально)">Удалить все</button>
+                </div>
+            </div>
+            <div class="sessions-table-wrapper">
+                <table id="allSessionsTable">
+                    <thead>
+                    <tr>
+                        <th style="width:70px;">ID</th>
+                        <th style="width:70px;">Активна</th>
+                        <th>User ID</th>
+                        <th>Логин</th>
+                        <th>IP</th>
+                        <th>User-Agent</th>
+                        <th>Истекает</th>
+                        <th style="width:60px;">G</th>
+                        <th style="width:110px;"></th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+                <div class="muted table-counter" id="allSessionsCount"></div>
+            </div>
+        </div>
+    </section>
+
 </main>
 <script src="/admin/users/script.js" defer></script>
 </body>

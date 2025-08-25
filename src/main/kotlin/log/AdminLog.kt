@@ -1,6 +1,8 @@
 package com.batr.log
 
 import com.batr.database.Database.suspendTransaction
+import io.ktor.server.application.Application
+import io.ktor.util.reflect.typeInfo
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.insert
@@ -52,6 +54,8 @@ object AdminLogService :
             sessionId = it[AdminLogTable.sessionId]
         )
     }
+
+    fun configureRouting(app: Application) = app.configureLogManagers("api/logs/admin", typeInfo<List<AdminLog>>())
 
     suspend fun log(type: AdminLogType, message: String, sessionId: Int, time: Long = System.currentTimeMillis()): Unit = suspendTransaction {
         table.insert {

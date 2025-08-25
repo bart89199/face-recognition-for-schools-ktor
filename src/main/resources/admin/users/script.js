@@ -1,44 +1,75 @@
 (function() {
-    const userApiRoot = '/auth/manage/user';
-    const sessionApiRoot = '/auth/manage/session';
-    const currentUserApi = '/api/user';
+    // Updated API roots per new paths
+    const userApiRoot = '/api/manage/user';
+    const sessionApiRoot = '/api/manage/session';
+    const currentUserApi = '/api/user/profile';
 
-    // DOM
+    // Global DOM
     const errBox = document.getElementById('err');
     const okBox = document.getElementById('ok');
+
+    // Tabs
+    const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+    const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+    function activateTab(id) {
+        tabButtons.forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+        tabPanels.forEach(p => p.classList.toggle('active', p.id === id));
+    }
+    tabButtons.forEach(btn => btn.addEventListener('click', () => {
+        activateTab(btn.dataset.tab);
+        clearMessages();
+    }));
+
+    // Users tab elements
     const usersTableBody = document.querySelector('#usersTable tbody');
-    const sessionsTableBody = document.querySelector('#sessionsTable tbody');
     const countInfo = document.getElementById('countInfo');
-    const rootCheckbox = document.getElementById('rootFlag');
-    const sessionsPanel = document.getElementById('sessionsPanel');
-    const sessionsInfo = document.getElementById('sessionsInfo');
-    const sessionsTable = document.getElementById('sessionsTable');
-    const sessionsEmpty = document.getElementById('sessionsEmpty');
-    const refreshSessionsBtn = document.getElementById('refreshSessionsBtn');
-    const deleteUserSessionsBtn = document.getElementById('deleteUserSessionsBtn');
-    const deleteAllSessionsBtn = document.getElementById('deleteAllSessionsBtn');
     const selectedUserTag = document.getElementById('selectedUserTag');
     const selectedUserName = document.getElementById('selectedUserName');
+    const selectedUserIdSpan = document.getElementById('selectedUserId');
 
-    // Form
-    const saveBtn = document.getElementById('saveBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const editIdInput = document.getElementById('editId');
-    const nameInput = document.getElementById('name');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-
-    // Search
     const filterNameInput = document.getElementById('filterName');
     const filterEmailInput = document.getElementById('filterEmail');
     const searchNameBtn = document.getElementById('searchNameBtn');
     const searchEmailBtn = document.getElementById('searchEmailBtn');
     const showAllBtn = document.getElementById('showAllBtn');
+    const goCreateBtn = document.getElementById('goCreateBtn');
 
+    // Edit tab elements
+    const editIdInput = document.getElementById('editId');
+    const showIdInput = document.getElementById('showId');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const rootCheckbox = document.getElementById('rootFlag');
+    const permGrid = document.getElementById('permGrid');
+    const userForm = document.getElementById('userForm');
+    const saveBtn = document.getElementById('saveBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const backToUsersBtn = document.getElementById('backToUsersBtn');
+    const formTitle = document.getElementById('formTitle');
+
+    // User sessions tab elements
+    const userSessionsTable = document.getElementById('userSessionsTable');
+    const userSessionsTableBody = userSessionsTable.querySelector('tbody');
+    const userSessionsInfo = document.getElementById('userSessionsInfo');
+    const userSessionsEmpty = document.getElementById('userSessionsEmpty');
+    const userSessionsFilter = document.getElementById('userSessionsFilter');
+    const refreshUserSessionsBtn = document.getElementById('refreshUserSessionsBtn');
+    const deleteUserSessionsBtn = document.getElementById('deleteUserSessionsBtn');
+
+    // All sessions tab elements
+    const allSessionsTableBody = document.querySelector('#allSessionsTable tbody');
+    const allSessionsFilter = document.getElementById('allSessionsFilter');
+    const refreshAllSessionsBtn = document.getElementById('refreshAllSessionsBtn');
+    const deleteAllSessionsBtn = document.getElementById('deleteAllSessionsBtn');
+    const allSessionsCount = document.getElementById('allSessionsCount');
+
+    // State
     let isCurrentRoot = false;
     let currentSelectedUserId = null;
+    let currentSelectedUserName = null;
 
-    // Permissions
+    // Permissions descriptors (RU labels)
     const permDescriptions = {
         stream: 'Просмотр видео',
         door_control: 'Управление дверью',
@@ -49,13 +80,12 @@
         settings: 'Настройки',
         backup: 'Резервное копирование',
         access_control: 'Управление доступом',
-        admin: 'Админ (full)'
+        admin: 'Администратор'
     };
     const permKeys = Object.keys(permDescriptions);
 
     function buildPermissionsGrid() {
-        const grid = document.getElementById('permGrid');
-        grid.innerHTML = '';
+        permGrid.innerHTML = '';
         permKeys.forEach(k => {
             const label = document.createElement('label');
             label.className = 'perm-item';
@@ -65,24 +95,34 @@
             cb.dataset.key = k;
             const span = document.createElement('span');
             span.textContent = permDescriptions[k];
+            cb.addEventListener('change', () => {
+                label.classList.toggle('checked', cb.checked);
+            });
             label.appendChild(cb);
             label.appendChild(span);
-            grid.appendChild(label);
+            permGrid.appendChild(label);
         });
     }
     buildPermissionsGrid();
+
+    function syncCheckedClasses() {
+        permKeys.forEach(k => {
+            const cb = document.getElementById('perm_'+k);
+            if (cb) cb.parentElement.classList.toggle('checked', cb.checked);
+        });
+    }
 
     function getPermsFromForm() {
         const perms = {};
         permKeys.forEach(k => perms[k] = document.getElementById('perm_'+k).checked);
         return perms;
     }
-
     function fillPerms(perms) {
         permKeys.forEach(k => {
             const el = document.getElementById('perm_'+k);
             if (el) el.checked = !!(perms && perms[k]);
         });
+        syncCheckedClasses();
     }
 
     // Messages
@@ -92,10 +132,18 @@
         errBox.textContent='';
         okBox.textContent='';
     }
-    function showError(m) { clearMessages(); errBox.textContent = m; errBox.classList.add('show'); }
-    function showOk(m) { clearMessages(); okBox.textContent = m; okBox.classList.add('show'); }
+    function showError(m) {
+        clearMessages();
+        errBox.textContent = m;
+        errBox.classList.add('show');
+    }
+    function showOk(m) {
+        clearMessages();
+        okBox.textContent = m;
+        okBox.classList.add('show');
+    }
 
-    // Fetch helper
+    // Fetch JSON helper
     async function fetchJSON(url, opts={}) {
         const res = await fetch(url, {
             credentials:'include',
@@ -121,18 +169,17 @@
             }
         } catch (_) {}
     }
-
     function updateRootCheckboxState() {
         if (!isCurrentRoot) {
             rootCheckbox.disabled = true;
             rootCheckbox.title = 'Только root может изменять этот флаг';
         } else {
             rootCheckbox.disabled = false;
-            rootCheckbox.title = '';
+            rootCheckbox.title = 'Изменение root-статуса доступно';
         }
     }
 
-    // Users
+    // USERS
     async function loadAllUsers() {
         try {
             const data = await fetchJSON(userApiRoot);
@@ -142,8 +189,7 @@
             showError('Не удалось загрузить пользователей: '+e.message);
         }
     }
-
-    function showCount(n) { countInfo.textContent = 'Всего: '+n; }
+    function showCount(n) { countInfo.textContent = 'Всего пользователей: '+n; }
 
     async function searchByName() {
         const name = filterNameInput.value.trim();
@@ -159,10 +205,10 @@
             showError(e.message);
         }
     }
-
     async function searchByEmail() {
         const email = filterEmailInput.value.trim();
         if (!email) { showError('Введите email для поиска'); return; }
+        // exact
         try {
             const user = await fetchJSON(userApiRoot+'/byEmail/'+encodeURIComponent(email));
             renderUsersTable([user]);
@@ -175,6 +221,7 @@
                 return;
             }
         }
+        // like
         try {
             const users = await fetchJSON(userApiRoot+'/findByEmail/'+encodeURIComponent(email));
             renderUsersTable(users||[]);
@@ -195,8 +242,9 @@
 
     function renderPermBadges(perms) {
         if (!perms) return '';
-        return permKeys.filter(k => perms[k])
-            .map(k => `<span class="badge" title="${permDescriptions[k]}">${k.replace(/_/g,'-')}</span>`)
+        return permKeys
+            .filter(k => perms[k])
+            .map(k => `<span class="badge" title="${escapeHtml(permDescriptions[k])}">${escapeHtml(permDescriptions[k])}</span>`)
             .join(' ');
     }
 
@@ -232,12 +280,14 @@
                 const user = await fetchJSON(`${userApiRoot}/${editId}`);
                 fillFormForEdit(user);
                 selectUser(user.id, user.name);
+                activateTab('tab-edit');
             } catch (err) {
                 showError(err.message);
             }
         } else if (sessId) {
             selectUser(parseInt(sessId,10));
-            await loadUserSessions(sessId);
+            activateTab('tab-user-sessions');
+            await loadUserSessions();
         } else if (delId) {
             if (!confirm('Удалить пользователя '+delId+'?')) return;
             try {
@@ -252,7 +302,7 @@
                     return;
                 }
                 showOk('Удалено');
-                if (currentSelectedUserId == delId) clearSessionsPanel();
+                if (currentSelectedUserId == delId) clearUserSelection();
                 await loadAllUsers();
                 if (editIdInput.value === delId) resetForm();
             } catch (err) {
@@ -262,18 +312,23 @@
     });
 
     function fillFormForEdit(user) {
+        formTitle.textContent = `Редактировать пользователя ${user.email} (id = ${user.id})`;
         editIdInput.value = user.id;
+        showIdInput.value = user.id;
         nameInput.value = user.name;
         emailInput.value = user.email;
         passwordInput.value = '';
         rootCheckbox.checked = !!user.root;
         fillPerms(user.permissions || {});
         saveBtn.textContent = 'Обновить';
+        updateRootCheckboxState();
         clearMessages();
     }
 
     function resetForm() {
+        formTitle.textContent = 'Создать пользователя';
         editIdInput.value = '';
+        showIdInput.value = '';
         nameInput.value = '';
         emailInput.value = '';
         passwordInput.value = '';
@@ -283,7 +338,33 @@
         updateRootCheckboxState();
     }
 
+    function selectUser(id, name) {
+        currentSelectedUserId = id;
+        currentSelectedUserName = name || currentSelectedUserName;
+        selectedUserTag.hidden = false;
+        selectedUserName.textContent = currentSelectedUserName || '';
+        selectedUserIdSpan.textContent = currentSelectedUserId;
+        refreshUserSessionsBtn.disabled = false;
+        deleteUserSessionsBtn.disabled = false;
+    }
+
+    function clearUserSelection() {
+        currentSelectedUserId = null;
+        currentSelectedUserName = null;
+        selectedUserTag.hidden = true;
+        selectedUserName.textContent = '';
+        selectedUserIdSpan.textContent = '';
+        refreshUserSessionsBtn.disabled = true;
+        deleteUserSessionsBtn.disabled = true;
+        userSessionsInfo.textContent = 'Выберите пользователя во вкладке "Пользователи".';
+        userSessionsTable.style.display = 'none';
+        userSessionsEmpty.style.display = 'none';
+        userSessionsTableBody.innerHTML = '';
+    }
+
     resetBtn.addEventListener('click', () => { resetForm(); clearMessages(); });
+    backToUsersBtn.addEventListener('click', () => { activateTab('tab-users'); });
+    goCreateBtn.addEventListener('click', () => { resetForm(); activateTab('tab-edit'); });
 
     searchNameBtn.addEventListener('click', searchByName);
     searchEmailBtn.addEventListener('click', searchByEmail);
@@ -294,87 +375,70 @@
         loadAllUsers();
     });
 
-    // --------- Sessions ---------
-    function markSessionsPanelLoading(loading) {
-        sessionsPanel.classList.toggle('sessions-panel-loading', loading);
-    }
+    // USER SESSIONS
+    userSessionsFilter.addEventListener('change', () => {
+        if (currentSelectedUserId) loadUserSessions();
+    });
+    refreshUserSessionsBtn.addEventListener('click', () => {
+        if (currentSelectedUserId) loadUserSessions();
+    });
 
-    function clearSessionsPanel() {
-        currentSelectedUserId = null;
-        sessionsTableBody.innerHTML = '';
-        sessionsTable.style.display = 'none';
-        sessionsEmpty.style.display = 'none';
-        sessionsInfo.textContent = 'Выберите пользователя';
-        refreshSessionsBtn.disabled = true;
-        deleteUserSessionsBtn.disabled = true;
-        selectedUserTag.hidden = true;
-        selectedUserName.textContent = '';
-    }
-
-    function selectUser(id, name) {
-        currentSelectedUserId = parseInt(id,10);
-        if (name) {
-            selectedUserTag.hidden = false;
-            selectedUserName.textContent = name;
-        }
-        sessionsInfo.textContent = 'Загрузка сессий...';
-        refreshSessionsBtn.disabled = false;
-        deleteUserSessionsBtn.disabled = false;
-    }
-
-    async function loadUserSessions(userId = currentSelectedUserId) {
-        if (!userId) {
-            clearSessionsPanel();
+    async function loadUserSessions() {
+        if (!currentSelectedUserId) {
+            userSessionsInfo.textContent = 'Пользователь не выбран.';
             return;
         }
-        markSessionsPanelLoading(true);
+        userSessionsInfo.textContent = 'Загрузка...';
+        const filterVal = userSessionsFilter.value;
+        let url = `${userApiRoot}/${currentSelectedUserId}/sessions`;
+        if (filterVal === 'active') url += '?active=true';
+        else if (filterVal === 'inactive') url += '?active=false';
+
         try {
-            const data = await fetchJSON(`${userApiRoot}/${userId}/sessions`);
-            renderSessions(data || []);
+            const data = await fetchJSON(url);
+            renderUserSessions(data || []);
         } catch (e) {
-            sessionsTableBody.innerHTML = '';
-            sessionsTable.style.display = 'none';
-            sessionsEmpty.style.display = 'none';
             showError(e.message);
-            sessionsInfo.textContent = 'Ошибка загрузки';
-        } finally {
-            markSessionsPanelLoading(false);
+            userSessionsInfo.textContent = 'Ошибка';
         }
     }
 
-    function renderSessions(sessions) {
-        sessionsTableBody.innerHTML = '';
+    function renderUserSessions(sessions) {
+        userSessionsTableBody.innerHTML = '';
         if (!sessions.length) {
-            sessionsTable.style.display = 'none';
-            sessionsEmpty.style.display = 'block';
-            sessionsInfo.textContent = 'Нет активных сессий';
+            userSessionsTable.style.display = 'none';
+            userSessionsEmpty.style.display = 'block';
+            userSessionsInfo.textContent = 'Сессий нет';
             return;
         }
-        sessionsTable.style.display = '';
-        sessionsEmpty.style.display = 'none';
-        sessionsInfo.textContent = `Активных сессий: ${sessions.length}`;
+        userSessionsTable.style.display = '';
+        userSessionsEmpty.style.display = 'none';
+        userSessionsInfo.textContent = `Сессий: ${sessions.length}`;
 
         sessions.forEach(s => {
+            const tr = document.createElement('tr');
+            const activeBadge = s.active
+                ? '<span class="badge badge-active">Да</span>'
+                : '<span class="badge badge-inactive">Нет</span>';
             const loginTs = s.requestData?.login_time;
             const expiresTs = s.expiresAt;
-            const relative = formatRemaining(expiresTs);
-            const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="nowrap">${s.id}</td>
+                <td>${s.id}</td>
+                <td>${activeBadge}</td>
                 <td class="truncate" title="${formatDateTime(loginTs)}">${formatShortDateTime(loginTs)}</td>
                 <td class="truncate" title="${escapeHtml(s.requestData?.ip || '')}">${escapeHtml(s.requestData?.ip || '')}</td>
                 <td class="truncate-wide" title="${escapeHtml(s.requestData?.user_agent||'')}">${escapeHtml((s.requestData?.user_agent||'').substring(0,140))}</td>
-                <td class="truncate" title="Истекает: ${formatDateTime(expiresTs)}">${relative}</td>
+                <td class="truncate" title="Истекает: ${formatDateTime(expiresTs)}">${formatRemaining(expiresTs)}</td>
                 <td>${s.googleLogin ? '<span class="badge badge-google" title="Google OAuth">G</span>' : ''}</td>
                 <td class="row-actions">
-                    <button type="button" class="danger outline small-btn" data-del-session="${s.id}">Удалить</button>
+                    ${s.active ? `<button type="button" class="danger outline small-btn" data-del-session="${s.id}">Удалить</button>` : ''}
                 </td>
             `;
-            sessionsTableBody.appendChild(tr);
+            userSessionsTableBody.appendChild(tr);
         });
     }
 
-    sessionsTableBody.addEventListener('click', async e => {
+    userSessionsTableBody.addEventListener('click', async e => {
         const btn = e.target.closest('button[data-del-session]');
         if (!btn) return;
         const sid = btn.dataset.delSession;
@@ -394,13 +458,10 @@
         }
     });
 
-    refreshSessionsBtn.addEventListener('click', () => loadUserSessions());
-
     deleteUserSessionsBtn.addEventListener('click', async () => {
         if (!currentSelectedUserId) return;
-        if (!confirm('Удалить ВСЕ сессии пользователя '+currentSelectedUserId+'?')) return;
+        if (!confirm('Удалить ВСЕ активные сессии пользователя '+currentSelectedUserId+'?')) return;
         try {
-            markSessionsPanelLoading(true);
             const res = await fetch(`${userApiRoot}/${currentSelectedUserId}/sessions`, {
                 method:'DELETE',
                 credentials:'include'
@@ -411,23 +472,86 @@
                 else showError(txt || ('Ошибка удаления сессий пользователя ('+res.status+')'));
                 return;
             }
-            showOk('Все сессии пользователя удалены');
+            showOk('Все сессии пользователя деактивированы');
             await loadUserSessions();
         } catch (e) {
             showError(e.message);
-        } finally {
-            markSessionsPanelLoading(false);
         }
     });
 
-    // Глобальное удаление всех сессий (исправлено: используем DELETE /auth/manage/session)
-    deleteAllSessionsBtn.addEventListener('click', async () => {
-        if (!confirm('Удалить АБСОЛЮТНО все сессии? Вы будете разлогинены.')) return;
+    // ALL SESSIONS
+    allSessionsFilter.addEventListener('change', loadAllSessions);
+    refreshAllSessionsBtn.addEventListener('click', loadAllSessions);
+
+    async function loadAllSessions() {
+        const filterVal = allSessionsFilter.value;
+        let url = `${sessionApiRoot}`;
+        if (filterVal === 'active') url += '?active=true';
+        else if (filterVal === 'inactive') url += '?active=false';
         try {
-            markSessionsPanelLoading(true);
-            const res = await fetch('/auth/manage/session', {
+            const data = await fetchJSON(url);
+            renderAllSessions(data || []);
+        } catch (e) {
+            showError('Не удалось загрузить сессии: '+e.message);
+        }
+    }
+
+    function renderAllSessions(list) {
+        allSessionsTableBody.innerHTML = '';
+        list.forEach(s => {
+            const activeBadge = s.active
+                ? '<span class="badge badge-active">Да</span>'
+                : '<span class="badge badge-inactive">Нет</span>';
+            const loginTs = s.requestData?.login_time;
+            const expiresTs = s.expiresAt;
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${s.id}</td>
+                <td>${activeBadge}</td>
+                <td>${s.requestData && typeof s.requestData.user_id !== 'undefined' ? s.requestData.user_id : '?'}</td>
+                <td class="truncate" title="${formatDateTime(loginTs)}">${formatShortDateTime(loginTs)}</td>
+                <td class="truncate" title="${escapeHtml(s.requestData?.ip || '')}">${escapeHtml(s.requestData?.ip || '')}</td>
+                <td class="truncate-wide" title="${escapeHtml(s.requestData?.user_agent||'')}">${escapeHtml((s.requestData?.user_agent||'').substring(0,140))}</td>
+                <td class="truncate" title="Истекает: ${formatDateTime(expiresTs)}">${formatRemaining(expiresTs)}</td>
+                <td>${s.googleLogin ? '<span class="badge badge-google" title="Google OAuth">G</span>' : ''}</td>
+                <td class="row-actions">
+                    ${s.active ? `<button type="button" class="danger outline small-btn" data-del-global-session="${s.id}">Удалить</button>` : ''}
+                </td>
+            `;
+            allSessionsTableBody.appendChild(tr);
+        });
+        allSessionsCount.textContent = 'Всего сессий: ' + list.length;
+    }
+
+    allSessionsTableBody.addEventListener('click', async e => {
+        const btn = e.target.closest('button[data-del-global-session]');
+        if (!btn) return;
+        const sid = btn.dataset.delGlobalSession;
+        if (!confirm('Удалить сессию '+sid+'?')) return;
+        try {
+            const res = await fetch(`${sessionApiRoot}/${sid}`, { method:'DELETE', credentials:'include' });
+            if (!res.ok) {
+                const txt = await res.text().catch(()=> '');
+                if (res.status === 403) showError('Недостаточно прав');
+                else showError(txt || ('Ошибка удаления сессии '+res.status));
+                return;
+            }
+            showOk('Сессия удалена');
+            await loadAllSessions();
+            if (currentSelectedUserId) {
+                loadUserSessions();
+            }
+        } catch (err) {
+            showError(err.message);
+        }
+    });
+
+    deleteAllSessionsBtn.addEventListener('click', async () => {
+        if (!confirm('Удалить АБСОЛЮТНО все активные сессии? Вы будете разлогинены.')) return;
+        try {
+            const res = await fetch(sessionApiRoot, {
                 method: 'DELETE',
-                credentials: 'include'
+                credentials:'include'
             });
             if (!res.ok) {
                 const txt = await res.text().catch(()=> '');
@@ -435,17 +559,14 @@
                 else showError(txt || ('Ошибка глобального удаления ('+res.status+')'));
                 return;
             }
-            showOk('Все сессии удалены');
-            // Полное обновление страницы, как просили
-            setTimeout(() => window.location.reload(), 600);
+            showOk('Все сессии деактивированы. Перезагрузка...');
+            setTimeout(() => window.location.reload(), 800);
         } catch (e) {
             showError(e.message);
-        } finally {
-            markSessionsPanelLoading(false);
         }
     });
 
-    // Date / time formatting
+    // Time formatting
     function formatDateTime(ts) {
         if (!ts) return '';
         const d = new Date(ts);
@@ -462,7 +583,6 @@
             hour:'2-digit', minute:'2-digit'
         });
     }
-
     function formatRemaining(ts) {
         if (!ts) return '';
         const diff = ts - Date.now();
@@ -492,8 +612,8 @@
         return past ? ('просрочена ' + text) : ('осталось ' + text);
     }
 
-    // Save user
-    document.getElementById('userForm').addEventListener('submit', async e => {
+    // SAVE / CREATE USER
+    userForm.addEventListener('submit', async e => {
         e.preventDefault();
         clearMessages();
         const id = editIdInput.value;
@@ -524,8 +644,9 @@
                     headers:{'Content-Type':'application/json'},
                     body: JSON.stringify(payload)
                 });
-                if (res.status === 204) {
+                if (res.ok) {
                     showOk('Обновлено');
+                    formTitle.textContent = `Редактировать пользователя ${email} (id = ${id})`;
                     await loadAllUsers();
                     if (currentSelectedUserId == id) await loadUserSessions();
                 } else {
@@ -545,6 +666,7 @@
                     showOk('Создан пользователь ID '+newId);
                     resetForm();
                     await loadAllUsers();
+                    activateTab('tab-users');
                 } else {
                     const txt = await res.text().catch(()=> '');
                     if (res.status === 403) showError('Недостаточно прав');
@@ -563,6 +685,9 @@
     (async function init() {
         await loadCurrentUser();
         await loadAllUsers();
-        clearSessionsPanel();
+        clearUserSelection();
+        resetForm();
+        loadAllSessions();
     })();
+
 })();
