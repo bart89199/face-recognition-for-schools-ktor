@@ -60,7 +60,7 @@ object SystemLogService :
     }
 
     fun configureRouting(app: Application) = app.routing {
-        route("api/logs/admin") {
+        route("api/logs/system") {
             authenticate("session-auth") {
                 setPermissions(UserPermissions(logs = true)) {
                     configureLogManagers(typeInfo<List<SystemLog>>())

@@ -37,6 +37,10 @@ fun Application.configureRouting() {
                 staticResources("/admin", "admin")
             }
 
+            setPermissions(UserPermissions(logs = true)) {
+                staticResources("/logs", "logs")
+            }
+
             staticResources("/profile", "profile")
         }
 

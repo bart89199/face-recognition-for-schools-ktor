@@ -65,7 +65,7 @@ object AdminLogService :
     }
 
     fun configureRouting(app: Application) = app.routing {
-        route("api/logs/system") {
+        route("api/logs/admin") {
             authenticate("session-auth") {
                 setPermissions(UserPermissions(admin = true)) {
                     configureLogManagers(typeInfo<List<AdminLog>>())

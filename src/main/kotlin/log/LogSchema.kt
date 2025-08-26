@@ -42,7 +42,7 @@ abstract class LogModel<T : Enum<T>> {
     abstract val message: String
 
     override fun toString(): String {
-        return "[${time.toDateString()}] [$type] $message"
+        return "[${time.toDateString()}] [$type]: $message"
     }
 }
 
@@ -89,6 +89,10 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
                 }
                 flush()
             }
+        }
+        get("current") {
+            val now = System.currentTimeMillis()
+            call.respond(getLogs(emptyList(), now - currentTimePeriodMs, now), logListTypeInfo)
         }
 
     }

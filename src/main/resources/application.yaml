@@ -16,3 +16,5 @@ googleapi:
 auth:
   token-life-time-ms: 3600000
   long-token-life-time-ms: 604800000
+log:
+  current-time-period-ms: 3600000

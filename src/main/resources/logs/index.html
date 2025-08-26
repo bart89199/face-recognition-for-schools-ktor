@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Логи</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link rel="preload" href="/logs/script.js" as="script">
+    <style>
+        :root {
+            font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+            color-scheme: light dark;
+        }
+        * { box-sizing:border-box; }
+        body { margin:0; background:#f5f7fb; color:#0f172a; }
+        header {
+            position:sticky; top:0; background:#1e293b; color:#f1f5f9;
+            padding:14px 22px; display:flex; gap:14px; align-items:center;
+            justify-content:space-between; z-index:50;
+        }
+        h1 { margin:0; font-size:1.05rem; }
+        main {
+            max-width:1500px; margin:0 auto 80px;
+            padding:20px 24px 60px; display:flex; flex-direction:column; gap:26px;
+        }
+
+        .tabs { display:flex; gap:6px; flex-wrap:wrap; }
+        .tab-btn {
+            background:#ffffff; border:1px solid #cbd5e1; padding:9px 16px;
+            border-radius:10px; cursor:pointer; font:.72rem/1.2 inherit;
+            font-weight:600; letter-spacing:.04em; color:#334155;
+            transition:.15s background,.15s color;
+        }
+        .tab-btn:hover { background:#e2e8f0; }
+        .tab-btn.active { background:#2563eb; border-color:#2563eb; color:#fff; }
+        .tab-btn[disabled] { opacity:.5; cursor:not-allowed; }
+        .panel {
+            background:#fff; padding:20px 22px 26px;
+            border-radius:20px; box-shadow:0 4px 18px rgba(0,0,0,.06);
+        }
+        h2 { margin:0 0 14px; font-size:.95rem; }
+
+        form.filters { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; margin:0 0 10px; }
+        form.filters label {
+            font-size:.6rem; display:flex; flex-direction:column; gap:5px;
+            text-transform:uppercase; letter-spacing:.07em; color:#475569;
+        }
+
+        input[type=datetime-local] {
+            padding:8px 10px; border:1px solid #cbd5e1; border-radius:10px;
+            font:inherit; background:#fff; color:#0f172a;
+            min-width:185px;
+        }
+        input[type=datetime-local]:focus {
+            outline:none; border-color:#3b82f6;
+            box-shadow:0 0 0 2px rgba(59,130,246,.35);
+        }
+
+        /* Видимость иконки календаря */
+        input[type=datetime-local]::-webkit-calendar-picker-indicator {
+            opacity:.8; cursor:pointer;
+        }
+        @media (prefers-color-scheme: dark) {
+            input[type=datetime-local] {
+                background:#1e293b; border-color:#334155; color:#f1f5f9;
+            }
+            input[type=datetime-local]::-webkit-calendar-picker-indicator {
+                filter:invert(1) brightness(1.2);
+            }
+        }
+
+        button {
+            font:inherit; cursor:pointer; border:none; border-radius:10px;
+            padding:9px 15px; font-weight:600; display:inline-flex;
+            gap:6px; align-items:center; background:#2563eb; color:#fff;
+        }
+        button.outline {
+            background:#fff; color:#1e293b; border:1px solid #cbd5e1;
+        }
+        button.outline:hover { background:#f1f5f9; }
+        button.secondary { background:#475569; }
+        button:disabled { opacity:.55; cursor:not-allowed; }
+        .btn-small { padding:6px 10px; font-size:.62rem; }
+
+        .messages { display:flex; flex-direction:column; gap:10px; }
+        .msg { display:none; font-size:.7rem; padding:10px 12px; border-radius:12px; }
+        .msg.show { display:block; }
+        .msg.error { background:#fee2e2; color:#991b1b; }
+        .msg.ok { background:#dcfce7; color:#166534; }
+
+        table {
+            width:100%; border-collapse:separate; border-spacing:0;
+            background:#fff; border-radius:16px; overflow:hidden; font-size:.7rem;
+        }
+        th, td { padding:8px 10px; border-bottom:1px solid #e2e8f0; text-align:left; vertical-align:top; }
+        th {
+            background:#f1f5f9; font-size:.58rem; letter-spacing:.06em; text-transform:uppercase;
+        }
+        tbody tr:last-child td { border-bottom:none; }
+        .nowrap { white-space:nowrap; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size:.68rem; }
+
+        .log-type-badge {
+            display:inline-block; padding:2px 7px 3px; border-radius:8px;
+            background:#2563eb; color:#fff; font-size:.55rem; margin:0 6px 6px 0;
+            letter-spacing:.03em; font-weight:600;
+        }
+
+        .actions { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 14px; }
+
+        .counter { font-size:.6rem; color:#475569; margin-top:6px; }
+        .spinner { width:16px; height:16px; border:3px solid rgba(255,255,255,.45); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+
+        .inline { display:inline-flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .grow { flex:1; }
+        .hidden { display:none !important; }
+
+        /* Группа типов (чекбоксы) */
+        .types-wrapper {
+            display:flex; flex-direction:column; gap:6px; min-width:260px;
+        }
+        .types-label { font-size:.6rem; text-transform:uppercase; letter-spacing:.07em; color:#475569; }
+        .types-grid {
+            display:grid; gap:6px 10px;
+            grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+            max-width:640px;
+        }
+        .type-chip {
+            position:relative; display:flex; align-items:center; gap:6px;
+            background:#ffffff; border:1px solid #cbd5e1;
+            padding:6px 8px 6px 8px; border-radius:9px;
+            font-size:.58rem; line-height:1.1; cursor:pointer;
+            transition:.15s background,.15s border-color,.15s color,.15s box-shadow;
+            user-select:none;
+        }
+        .type-chip input {
+            margin:0; width:14px; height:14px; cursor:pointer;
+            accent-color:#2563eb;
+        }
+        .type-chip.active {
+            background:#2563eb; border-color:#2563eb; color:#fff;
+            box-shadow:0 2px 6px rgba(37,99,235,.35);
+        }
+        .chips-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; }
+
+        @media (prefers-color-scheme: dark) {
+            body { background:#0f172a; color:#f1f5f9; }
+            header { background:#0f172a; }
+            .panel, table, th, td { background:#1e293b; }
+            th { background:#0f172a; }
+            button.outline { background:#1e293b; color:#f1f5f9; border-color:#334155; }
+            button.outline:hover { background:#334155; }
+            .tab-btn { background:#1e293b; border-color:#334155; color:#f1f5f9; }
+            .tab-btn:hover { background:#334155; }
+            .tab-btn.active { background:#2563eb; border-color:#2563eb; color:#fff; }
+            .msg.error { background:#7f1d1d; color:#fee2e2; }
+            .msg.ok { background:#14532d; color:#dcfce7; }
+            .counter { color:#94a3b8; }
+            label, .types-label { color:#94a3b8; }
+            .type-chip {
+                background:#1e293b; border-color:#334155; color:#e2e8f0;
+            }
+            .type-chip.active {
+                background:#2563eb; border-color:#2563eb; color:#fff;
+                box-shadow:0 2px 8px rgba(0,0,0,.5);
+            }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Логи системы</h1>
+    <div class="inline">
+        <button class="outline" onclick="location.href='/'">Главная</button>
+        <button class="outline" onclick="location.href='/profile'">Профиль</button>
+        <button class="outline" onclick="location.href='/admin/users'" id="toUsersBtn">Пользователи</button>
+        <button class="outline danger" style="background:#dc2626;color:#fff;border:none;" onclick="location.href='/logout'">Выйти</button>
+    </div>
+</header>
+<main>
+    <div class="tabs" id="tabs">
+        <button class="tab-btn active" data-tab="systemTab" id="systemTabBtn">System логи</button>
+        <button class="tab-btn" data-tab="adminTab" id="adminTabBtn">Admin логи</button>
+    </div>
+
+    <div class="messages">
+        <div id="errBox" class="msg error" role="alert"></div>
+        <div id="okBox" class="msg ok" role="status"></div>
+    </div>
+
+    <!-- SYSTEM LOGS -->
+    <section id="systemTab" class="panel">
+        <h2>System логи</h2>
+        <form class="filters" id="systemFilters" autocomplete="off">
+            <label>Начало
+                <input type="datetime-local" id="sysStart">
+            </label>
+            <label>Окончание
+                <input type="datetime-local" id="sysEnd">
+            </label>
+            <div class="types-wrapper">
+                <div class="types-label">Типы</div>
+                <div class="types-grid" id="sysTypesGrid"></div>
+                <div class="chips-actions">
+                    <button type="button" class="outline btn-small" id="sysSelectAllTypes">Все</button>
+                    <button type="button" class="outline btn-small" id="sysClearTypes">Снять</button>
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <button type="button" id="sysLoadBtn">Обновить</button>
+                <button type="button" class="outline" id="sysClearBtn">Сброс</button>
+                <button type="button" class="outline" id="sysDownloadBtn">Скачать</button>
+            </div>
+        </form>
+        <div class="counter" id="sysCount"></div>
+        <div style="overflow:auto; max-height:60vh; border-radius:16px;">
+            <table id="sysTable">
+                <thead>
+                <tr>
+                    <th style="width:165px;">Время</th>
+                    <th style="width:160px;">Тип</th>
+                    <th>Сообщение</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ADMIN LOGS -->
+    <section id="adminTab" class="panel hidden">
+        <h2>Admin логи</h2>
+        <form class="filters" id="adminFilters" autocomplete="off">
+            <label>Начало
+                <input type="datetime-local" id="admStart">
+            </label>
+            <label>Окончание
+                <input type="datetime-local" id="admEnd">
+            </label>
+            <div class="types-wrapper">
+                <div class="types-label">Типы</div>
+                <div class="types-grid" id="admTypesGrid"></div>
+                <div class="chips-actions">
+                    <button type="button" class="outline btn-small" id="admSelectAllTypes">Все</button>
+                    <button type="button" class="outline btn-small" id="admClearTypes">Снять</button>
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <button type="button" id="admLoadBtn">Обновить</button>
+                <button type="button" class="outline" id="admClearBtn">Сброс</button>
+                <button type="button" class="outline" id="admDownloadBtn">Скачать</button>
+            </div>
+        </form>
+        <div class="counter" id="admCount"></div>
+        <div style="overflow:auto; max-height:60vh; border-radius:16px;">
+            <table id="admTable">
+                <thead>
+                <tr>
+                    <th style="width:165px;">Время</th>
+                    <th style="width:160px;">Тип</th>
+                    <th>Сообщение</th>
+                    <th style="width:90px;">SessionId</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+<script src="/logs/script.js" defer></script>
+</body>
+</html>

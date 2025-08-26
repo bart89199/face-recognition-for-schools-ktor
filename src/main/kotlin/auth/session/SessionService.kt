@@ -21,10 +21,11 @@ import kotlin.properties.Delegates
 
 object SessionService {
     var tokenLifeTimeMs by Delegates.notNull<Long>()
+        private set
     var longTokenLifeTimeMs by Delegates.notNull<Long>()
         private set
 
-    fun load(application: Application): Unit {
+    fun load(application: Application) {
         tokenLifeTimeMs = application.environment.config.property("auth.token-life-time-ms").getAs()
         longTokenLifeTimeMs = application.environment.config.property("auth.long-token-life-time-ms").getAs()
         transaction {

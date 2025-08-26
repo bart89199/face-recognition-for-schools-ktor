@@ -5,6 +5,7 @@ import com.batr.database.Database.configureDatabase
 import com.batr.log.AdminLogService
 import com.batr.log.SystemLogService
 import com.batr.log.SystemLogType
+import com.batr.log.loadLogConsts
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.serialization.kotlinx.json.*
@@ -31,6 +32,8 @@ fun Application.module() {
     monitor.subscribe(ApplicationStopped) {
         SystemLogService.logB(SystemLogType.SYSTEM_STOP, "System stoped")
     }
+
+    loadLogConsts()
 
     configureDatabase()
     configureAuth()
