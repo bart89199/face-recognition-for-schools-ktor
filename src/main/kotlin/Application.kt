@@ -6,6 +6,7 @@ import com.batr.log.AdminLogService
 import com.batr.log.SystemLogService
 import com.batr.log.SystemLogType
 import com.batr.log.loadLogConsts
+import com.batr.settings.SystemSettingsService
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.serialization.kotlinx.json.*
@@ -26,31 +27,43 @@ val applicationHttpClient = HttpClient(CIO) {
 fun Application.module() {
 
     monitor.subscribe(ApplicationStarted) {
-        SystemLogService.logB(SystemLogType.SYSTEM_START, "System started")
+//        SystemLogService.logB(SystemLogType.SYSTEM_START, "System started")
+        try {
+            SystemSettingsService.load(this)
+        }catch (e: Throwable) {
+            e.printStackTrace()
+        }
     }
 
     monitor.subscribe(ApplicationStopped) {
-        SystemLogService.logB(SystemLogType.SYSTEM_STOP, "System stoped")
+//        SystemLogService.logB(SystemLogType.SYSTEM_STOP, "System stoped")
+        try {
+            SystemSettingsService.save()
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
     }
 
-    loadLogConsts()
+    SystemSettingsService.configureRouting(this)
 
-    configureDatabase()
-    configureAuth()
-    SystemLogService.load()
-    AdminLogService.load()
 
-    configureSerialization()
-    configureSockets()
-    configureRouting()
-    configureAccess()
+//    loadLogConsts()
 
-    SystemLogService.configureRouting(this)
-    AdminLogService.configureRouting(this)
+//    configureDatabase()
+//    configureAuth()
+//    SystemLogService.load()
+//    AdminLogService.load()
 
-    configureStreaming()
-    configureDoor()
-    configureInfo()
-    configureSettings()
-    configureTest()
+//    configureSerialization()
+//    configureSockets()
+//    configureRouting()
+//    configureAccess()
+
+//    SystemLogService.configureRouting(this)
+//    AdminLogService.configureRouting(this)
+
+//    configureStreaming()
+//    configureDoor()
+//    configureInfo()
+//    configureTest()
 }

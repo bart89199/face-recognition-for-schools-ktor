@@ -12,7 +12,7 @@ fun Application.configureStreaming() {
     routing {
         authenticate("session-auth") {
             setPermissions(UserPermissions(stream = true)) {
-                staticFiles("stream", File("C:/Users/suslo/testweb/hsl"))
+                staticFiles("stream", File(environment.config.property("stream.path").getString()))
             }
         }
     }
