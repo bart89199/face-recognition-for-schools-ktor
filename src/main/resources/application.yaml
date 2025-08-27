@@ -23,3 +23,5 @@ settings:
   file: "settings.json"
 stream:
   path: "/home/danil/testweb/hls"
+records:
+  path: "/home/danil/testweb/records"

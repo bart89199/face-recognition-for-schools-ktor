@@ -1,5 +1,6 @@
 package com.batr.log
 
+import com.batr.auth.getSession
 import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
 import com.batr.database.Database.suspendTransaction
@@ -74,6 +75,7 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
 
     protected fun Route.configureLogManagers(logListTypeInfo: TypeInfo) {
         get {
+            val session = call.getSession() ?: return@get
             val download = call.request.queryParameters["download"].toBoolean()
             val logs = fetchLogs() ?: return@get
             if (!download) {
@@ -81,17 +83,18 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
                 return@get
             }
             val fileName = logsFileName() ?: return@get
-
+            session.log(AdminLogType.LOGS_DOWNLOAD, "Download $fileName")
             respondLogsFile(logs, fileName, logListTypeInfo)
         }
         get("current") {
+            val session = call.getSession() ?: return@get
             val download = call.request.queryParameters["download"].toBoolean()
             if (!download) {
                 call.respond(currentLogs, logListTypeInfo)
                 return@get
             }
             val fileName = "[${System.currentTimeMillis().toDateString()}] current-logs.txt"
-
+            session.log(AdminLogType.LOGS_DOWNLOAD, "Download current logs")
             respondLogsFile(currentLogs, fileName, logListTypeInfo)
         }
 

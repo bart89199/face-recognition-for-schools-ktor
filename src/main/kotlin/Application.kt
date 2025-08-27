@@ -47,6 +47,7 @@ fun Application.module() {
 
 
         loadLogConst()
+        Records.load(this)
 
         configureDatabase()
         configureAuth()
@@ -62,13 +63,14 @@ fun Application.module() {
 
         SystemLogService.configureRouting(this)
         AdminLogService.configureRouting(this)
+        Records.configureRouting(this)
 
         configureStreaming()
         configureDoor()
         configureInfo()
         configureTest()
 
-    }catch (e: Throwable) {
+    } catch (e: Throwable) {
         e.printStackTrace()
     }
 
