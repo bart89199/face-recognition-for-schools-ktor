@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Настройки системы</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link rel="preload" href="/settings/script.js" as="script">
+    <style>
+        :root { font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif; color-scheme: light dark; }
+        * { box-sizing: border-box; }
+        body { margin:0; background:#f5f7fb; color:#0f172a; }
+        header { position:sticky; top:0; background:#1e293b; color:#f1f5f9; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; gap:20px; z-index:50; }
+        header h1 { margin:0; font-size:1.1rem; font-weight:600; letter-spacing:.5px; }
+        .logout-btn { background:#dc2626; color:#fff; border:none; border-radius:8px; padding:8px 16px; font-weight:600; cursor:pointer; font:inherit; display:inline-flex; align-items:center; gap:6px; }
+        .logout-btn:hover { background:#b91c1c; }
+        main { max-width:1200px; margin:0 auto 80px; padding:0 28px 40px; }
+
+        .panel { background:#fff; padding:22px 24px 26px; border-radius:20px; box-shadow:0 4px 18px rgba(0,0,0,.06); position:relative; margin-top:20px; }
+        h2 { margin:0 0 18px; font-size:1rem; }
+
+        .settings-form { display:flex; flex-direction:column; gap:18px; }
+        .setting-item { background:#f8fafc; padding:16px 18px; border-radius:12px; border:1px solid #e2e8f0; }
+        .setting-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+        .setting-name { font-weight:600; font-size:.85rem; color:#1e293b; }
+        .setting-comment { font-size:.7rem; color:#64748b; line-height:1.4; margin-bottom:12px; }
+        
+        .setting-control { display:flex; align-items:center; gap:10px; }
+        input[type=number] { 
+            border:1px solid #cbd5e1; border-radius:8px; padding:8px 12px; font:inherit; background:#fff; 
+            width:120px; font-size:.8rem;
+        }
+        input[type=number]:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.35); }
+        
+        .checkbox-wrapper { display:flex; align-items:center; gap:8px; }
+        .checkbox-wrapper input[type=checkbox] { 
+            width:18px; height:18px; cursor:pointer; 
+            accent-color:#2563eb;
+        }
+        .checkbox-label { font-size:.78rem; color:#374151; cursor:pointer; }
+
+        .actions { display:flex; gap:12px; margin-top:24px; }
+        button { 
+            font:inherit; border:none; cursor:pointer; border-radius:10px; padding:10px 20px; 
+            font-weight:600; background:#2563eb; color:#fff; display:inline-flex; align-items:center; gap:6px; 
+            font-size:.8rem;
+        }
+        button.secondary { background:#6b7280; }
+        button.outline { background:#fff; color:#374151; border:1px solid #d1d5db; }
+        button.outline:hover { background:#f9fafb; }
+        button:disabled { opacity:.55; cursor:not-allowed; }
+
+        .spinner { width:16px; height:16px; border:3px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg);} }
+
+        .error { background:#fee2e2; color:#991b1b; padding:12px 14px; border-radius:12px; font-size:.75rem; display:none; margin-bottom:16px; }
+        .success { background:#dcfce7; color:#166534; padding:12px 14px; border-radius:12px; font-size:.75rem; display:none; margin-bottom:16px; }
+        .error.show, .success.show { display:block; }
+
+        .loading-overlay { 
+            position:absolute; top:0; left:0; right:0; bottom:0; 
+            background:rgba(255,255,255,.8); display:none; align-items:center; justify-content:center;
+            border-radius:20px;
+        }
+        .loading-overlay.show { display:flex; }
+
+        @media (prefers-color-scheme: dark) {
+            body { background:#0f172a; color:#f1f5f9; }
+            .panel { background:#1e293b; box-shadow:0 4px 22px rgba(0,0,0,.55); }
+            .setting-item { background:#334155; border-color:#475569; }
+            .setting-name { color:#f1f5f9; }
+            .setting-comment { color:#94a3b8; }
+            input[type=number] { background:#0f172a; border-color:#475569; color:#f1f5f9; }
+            button.outline { background:#334155; color:#f1f5f9; border-color:#475569; }
+            button.outline:hover { background:#475569; }
+            .loading-overlay { background:rgba(30,41,59,.8); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Настройки системы</h1>
+        <form action="/logout" method="post" style="margin:0;">
+            <button type="submit" class="logout-btn">
+                <span>👤</span>
+                Выйти
+            </button>
+        </form>
+    </header>
+
+    <main>
+        <div class="panel">
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+            </div>
+            
+            <h2>Настройки системы</h2>
+            
+            <div class="error" id="errorMessage"></div>
+            <div class="success" id="successMessage"></div>
+            
+            <form class="settings-form" id="settingsForm">
+                <!-- Settings will be loaded dynamically -->
+            </form>
+            
+            <div class="actions">
+                <button type="button" id="saveBtn">Сохранить изменения</button>
+                <button type="button" id="reloadBtn" class="outline">Обновить</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="/settings/script.js" defer></script>
+</body>
+</html>

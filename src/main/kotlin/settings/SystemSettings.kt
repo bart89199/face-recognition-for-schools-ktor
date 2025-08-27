@@ -1,8 +1,11 @@
 package com.batr.settings
 
+import com.batr.auth.setPermissions
+import com.batr.auth.user.UserPermissions
 import com.batr.receiveOrRespond
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
+import io.ktor.server.auth.*
 import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.put
@@ -139,14 +142,18 @@ object SystemSettingsService {
 
     fun configureRouting(app: Application) {
         app.routing {
-            route("/api/settings") {
-                get {
-                    call.respond(systemSettings.toModel())
-                }
-                put {
-                    val upd = call.receiveOrRespond<SettingUpdate>() ?: return@put
-                    val res = update(upd.name, upd.value)
-                    call.respond(res.statusCode, res.message)
+            authenticate("session-auth") {
+                setPermissions(UserPermissions(settings = true)) {
+                    route("/api/settings") {
+                        get {
+                            call.respond(systemSettings.toModel())
+                        }
+                        put {
+                            val upd = call.receiveOrRespond<SettingUpdate>() ?: return@put
+                            val res = update(upd.name, upd.value)
+                            call.respond(res.statusCode, res.message)
+                        }
+                    }
                 }
             }
         }
