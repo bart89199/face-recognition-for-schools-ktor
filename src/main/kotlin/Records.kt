@@ -10,7 +10,13 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.io.File
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
+import kotlin.io.path.Path
 import kotlin.properties.Delegates
 
 object Records {
@@ -21,7 +27,16 @@ object Records {
         recordsFolder.mkdirs()
     }
 
-    fun getRecordsList(): List<String> = recordsFolder.list().filter { it.contains(".") }
+    fun getRecordsList(): List<RecordModel> = recordsFolder.list().filter { it.contains(".") }.mapNotNull {
+        try {
+            val attributes = Files.readAttributes(Path(recordsFolder.path,it), BasicFileAttributes::class.java)
+            RecordModel(it, attributes.creationTime().toMillis(), attributes.lastModifiedTime().toMillis())
+        } catch (_: UnsupportedOperationException) {
+            null
+        } catch (_: IOException) {
+            null
+        }
+    }
 
     fun getRecord(filename: String): File? {
         if (filename.contains("..") || filename.contains(File.separator)) return null
@@ -66,3 +81,10 @@ object Records {
     }
 
 }
+
+@Serializable
+data class RecordModel(
+    val filename: String,
+    val created: Long,
+    @SerialName("last_modified") val lastModified: Long,
+)
