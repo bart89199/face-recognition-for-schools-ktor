@@ -4,11 +4,11 @@ import com.batr.auth.session.UserSession
 import io.ktor.server.application.Application
 import kotlin.properties.Delegates
 
-var currentTimePeriodMs: Long by Delegates.notNull()
+var currentLogAmount: Int by Delegates.notNull()
     private set
 
-fun Application.loadLogConsts() {
-    currentTimePeriodMs = environment.config.property("log.current-time-period-ms").getString().toLong()
+fun Application.loadLogConst() {
+    currentLogAmount = environment.config.property("log.currentLogAmount").getString().toInt()
 }
 
 suspend fun sysLog(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit =

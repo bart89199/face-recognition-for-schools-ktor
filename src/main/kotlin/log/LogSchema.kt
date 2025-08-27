@@ -63,6 +63,15 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
         }
     }
 
+    protected val currentLogs: MutableList<L> = ArrayList()
+
+    protected fun addLog(log: L) {
+        currentLogs.add(log)
+        while (currentLogs.size >= currentLogAmount && currentLogAmount != -1) {
+            currentLogs.removeFirst()
+        }
+    }
+
     protected fun Route.configureLogManagers(logListTypeInfo: TypeInfo) {
         get {
             val download = call.request.queryParameters["download"].toBoolean()
@@ -73,28 +82,38 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
             }
             val fileName = logsFileName() ?: return@get
 
-            call.response.headers.append(
-                HttpHeaders.ContentDisposition,
-                ContentDisposition.Attachment
-                    .withParameter(ContentDisposition.Parameters.FileName, fileName)
-                    .toString()
-            )
-            call.response.headers.append(HttpHeaders.CacheControl, "no-store, no-cache, max-age=0")
-
-            val newline = "\n".toByteArray()
-            call.respondOutputStream(ContentType.Text.Plain.withCharset(Charsets.UTF_8)) {
-                for (line in logs) {
-                    write(line.toString().toByteArray(Charsets.UTF_8))
-                    write(newline)
-                }
-                flush()
-            }
+            respondLogsFile(logs, fileName, logListTypeInfo)
         }
         get("current") {
-            val now = System.currentTimeMillis()
-            call.respond(getLogs(emptyList(), now - currentTimePeriodMs, now), logListTypeInfo)
+            val download = call.request.queryParameters["download"].toBoolean()
+            if (!download) {
+                call.respond(currentLogs, logListTypeInfo)
+                return@get
+            }
+            val fileName = "[${System.currentTimeMillis().toDateString()}] current-logs.txt"
+
+            respondLogsFile(currentLogs, fileName, logListTypeInfo)
         }
 
+    }
+
+    protected suspend fun RoutingContext.respondLogsFile(logs: List<L>, fileName: String, logListTypeInfo: TypeInfo) {
+        call.response.headers.append(
+            HttpHeaders.ContentDisposition,
+            ContentDisposition.Attachment
+                .withParameter(ContentDisposition.Parameters.FileName, fileName)
+                .toString()
+        )
+        call.response.headers.append(HttpHeaders.CacheControl, "no-store, no-cache, max-age=0")
+
+        val newline = "\n".toByteArray()
+        call.respondOutputStream(ContentType.Text.Plain.withCharset(Charsets.UTF_8)) {
+            for (line in logs) {
+                write(line.toString().toByteArray(Charsets.UTF_8))
+                write(newline)
+            }
+            flush()
+        }
     }
 
     protected suspend fun RoutingContext.fetchLogType(): List<T>? = try {
@@ -108,7 +127,7 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
         val start = call.queryParameters["start"]?.toLong()
         val end = call.queryParameters["end"]?.toLong()
         val type = fetchLogType() ?: return null
-        return getLogs(type, start, end)
+        return getLogs(type, start, end).sortedByDescending { it.time }
     }
 
     protected suspend fun RoutingContext.logsFileName(): String? {

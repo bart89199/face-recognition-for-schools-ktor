@@ -1,5 +1,5 @@
 (function() {
-    // ===== ENUM LISTS (sync with backend) =====
+    // ==== TYPES ====
     const SYSTEM_TYPES = [
         "SYSTEM_START","SYSTEM_STOP","DOOR","RECOGNIZE","SETTINGS_CHANGE",
         "BACKUP_CREATE","BACKUP_DELETE","BACKUP_UPLOAD","FRAME_ADD","FRAME_REMOVE",
@@ -13,50 +13,68 @@
         "FORM_DELETE","FRAME_ADD","FRAME_REMOVE","HUMAN_ADD","HUMAN_REMOVE"
     ];
 
-    // ===== CORRECT ENDPOINTS AFTER FIX =====
     const systemEndpoint = "/api/logs/system";
     const adminEndpoint  = "/api/logs/admin";
 
-    // ===== DOM =====
+    // ==== DOM ====
+    // System
     const sysStart = document.getElementById("sysStart");
-    const sysEnd   = document.getElementById("sysEnd");
-    const admStart = document.getElementById("admStart");
-    const admEnd   = document.getElementById("admEnd");
-
+    const sysEnd = document.getElementById("sysEnd");
     const sysLoadBtn = document.getElementById("sysLoadBtn");
-    const sysClearBtn = document.getElementById("sysClearBtn");
+    const sysCurrentBtn = document.getElementById("sysCurrentBtn");
     const sysDownloadBtn = document.getElementById("sysDownloadBtn");
-    const admLoadBtn = document.getElementById("admLoadBtn");
-    const admClearBtn = document.getElementById("admClearBtn");
-    const admDownloadBtn = document.getElementById("admDownloadBtn");
-
+    const sysClearBtn = document.getElementById("sysClearBtn");
+    const sysTypesList = document.getElementById("sysTypesList");
     const sysSelectAllTypes = document.getElementById("sysSelectAllTypes");
     const sysClearTypes = document.getElementById("sysClearTypes");
+    const sysTableBody = document.querySelector("#sysTable tbody");
+    const sysCount = document.getElementById("sysCount");
+    const sysFetchInfo = document.getElementById("sysFetchInfo");
+    const sysTimeHeader = document.getElementById("sysTimeHeader");
+    const sysSortInd = document.getElementById("sysSortInd");
+
+    // Admin
+    const admStart = document.getElementById("admStart");
+    const admEnd = document.getElementById("admEnd");
+    const admLoadBtn = document.getElementById("admLoadBtn");
+    const admCurrentBtn = document.getElementById("admCurrentBtn");
+    const admDownloadBtn = document.getElementById("admDownloadBtn");
+    const admClearBtn = document.getElementById("admClearBtn");
+    const admTypesList = document.getElementById("admTypesList");
     const admSelectAllTypes = document.getElementById("admSelectAllTypes");
     const admClearTypes = document.getElementById("admClearTypes");
-
-    const sysTypesGrid = document.getElementById("sysTypesGrid");
-    const admTypesGrid = document.getElementById("admTypesGrid");
-
-    const sysTableBody = document.querySelector("#sysTable tbody");
     const admTableBody = document.querySelector("#admTable tbody");
-    const sysCount = document.getElementById("sysCount");
     const admCount = document.getElementById("admCount");
+    const admFetchInfo = document.getElementById("admFetchInfo");
 
+    const admTimeHeader = document.getElementById("admTimeHeader");
+    const admTypeHeader = document.getElementById("admTypeHeader");
+    const admSessionHeader = document.getElementById("admSessionHeader");
+    const admSortInd = document.getElementById("admSortInd");
+    const admTypeSortInd = document.getElementById("admTypeSortInd");
+    const admSessionSortInd = document.getElementById("admSessionSortInd");
+
+    // Tabs / messages
+    const adminTabBtn = document.getElementById("adminTabBtn");
+    const systemTabBtn = document.getElementById("systemTabBtn");
+    const adminTab = document.getElementById("adminTab");
+    const systemTab = document.getElementById("systemTab");
     const errBox = document.getElementById("errBox");
     const okBox = document.getElementById("okBox");
 
-    const systemTabBtn = document.getElementById("systemTabBtn");
-    const adminTabBtn = document.getElementById("adminTabBtn");
-    const systemTab = document.getElementById("systemTab");
-    const adminTab = document.getElementById("adminTab");
+    // ==== STATE ====
+    let systemLogsData = [];
+    let adminLogsData = [];
+    let systemSortAsc = false; // time: newest -> oldest default
+    // admin sorting state {key: time|type|session, asc:boolean}
+    let adminSort = { key: "time", asc: false };
 
-    // ===== STATE =====
+    let systemLastMode = "range"; // "range" | "current"
+    let adminLastMode = "range";
+
     let userProfile = null;
-    let systemLoaded = false;
-    let adminLoaded = false;
 
-    // ===== UTIL =====
+    // ==== UTIL ====
     function showError(msg) {
         if (!msg) return;
         errBox.textContent = msg;
@@ -69,52 +87,76 @@
         okBox.classList.add("show");
         errBox.classList.remove("show");
     }
-    function clearMessages() {
-        errBox.classList.remove("show");
-        okBox.classList.remove("show");
-    }
+    function clearMessages() { errBox.classList.remove("show"); okBox.classList.remove("show"); }
 
-    function buildCheckboxGrid(container, values) {
+    function buildTypesList(container, values) {
         container.innerHTML = "";
         values.forEach(v => {
-            const label = document.createElement("label");
-            label.className = "type-chip";
+            const row = document.createElement("label");
+            row.className = "type-row";
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.value = v;
-            cb.addEventListener("change", () => {
-                label.classList.toggle("active", cb.checked);
+            cb.addEventListener("change", () => row.classList.toggle("checked", cb.checked));
+            row.appendChild(cb);
+            row.appendChild(document.createTextNode(v));
+            row.addEventListener("click", e => {
+                if (e.target === cb) return;
+                cb.checked = !cb.checked;
+                row.classList.toggle("checked", cb.checked);
             });
-            const span = document.createElement("span");
-            span.textContent = v;
-            label.appendChild(cb);
-            label.appendChild(span);
-            container.appendChild(label);
+            container.appendChild(row);
         });
     }
 
-    function getChecked(container) {
-        return [...container.querySelectorAll('input[type=checkbox]:checked')].map(i => i.value);
+    function getCheckedTypes(container) {
+        return [...container.querySelectorAll("input[type=checkbox]:checked")].map(i => i.value);
     }
-
-    function setAll(container, state) {
-        container.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    function setAllTypes(container, state) {
+        container.querySelectorAll("input[type=checkbox]").forEach(cb => {
             cb.checked = state;
-            cb.parentElement.classList.toggle("active", state);
+            cb.parentElement.classList.toggle("checked", state);
         });
     }
 
     function dtLocalToEpochMs(input) {
-        const v = input.value;
-        if (!v) return null;
-        const ms = new Date(v).getTime();
+        if (!input || !input.value) return null;
+        const ms = new Date(input.value).getTime();
         return isNaN(ms) ? null : ms;
+    }
+    function toLocalInputValue(date) {
+        const p = n => String(n).padStart(2,"0");
+        return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())}T${p(date.getHours())}:${p(date.getMinutes())}`;
+    }
+    function applyDefaultInterval() {
+        const now = new Date();
+        const endStr = toLocalInputValue(now);
+        const start = new Date(now.getTime() - 24*3600*1000);
+        const startStr = toLocalInputValue(start);
+        sysStart.value = startStr; sysEnd.value = endStr;
+        admStart.value = startStr; admEnd.value = endStr;
+    }
+
+    function buildQuery(startMs, endMs, typesArr) {
+        const params = new URLSearchParams();
+        if (startMs != null) params.set("start", String(startMs));
+        if (endMs != null) params.set("end", String(endMs));
+        if (typesArr && typesArr.length) params.set("type", typesArr.join(","));
+        return params.toString();
+    }
+
+    function downloadRange(endpoint, startMs, endMs, typesArr) {
+        const q = buildQuery(startMs, endMs, typesArr);
+        const url = endpoint + (q ? "?" + q + "&download=true" : "?download=true");
+        window.open(url, "_blank");
+        showOk("Начата загрузка файла");
     }
 
     function formatDate(ms) {
         if (ms == null) return "";
         const d = new Date(ms);
-        return isNaN(d.getTime()) ? "" : d.toLocaleString("ru-RU");
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleString("ru-RU");
     }
 
     function setLoading(btn, loading) {
@@ -132,217 +174,258 @@
         }
     }
 
-    function applyDefaultInterval() {
-        const now = new Date();
-        const endStr = toLocalInputValue(now);
-        const start = new Date(now.getTime() - 24 * 3600 * 1000);
-        const startStr = toLocalInputValue(start);
-        sysStart.value = startStr;
-        sysEnd.value = endStr;
-        admStart.value = startStr;
-        admEnd.value = endStr;
-    }
-
-    function toLocalInputValue(date) {
-        const pad = n => String(n).padStart(2,"0");
-        return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-    }
-
-    function buildQuery(startMs, endMs, typesArr) {
-        const params = new URLSearchParams();
-        if (startMs != null) params.set("start", String(startMs));
-        if (endMs != null) params.set("end", String(endMs));
-        if (typesArr && typesArr.length) params.set("type", typesArr.join(","));
-        return params.toString();
-    }
-
-    function downloadLogs(endpoint, startMs, endMs, typesArr) {
-        const query = buildQuery(startMs, endMs, typesArr);
-        const url = endpoint + (query ? "?" + query + "&download=true" : "?download=true");
-        window.open(url, "_blank");
-        showOk("Начата загрузка файла");
-    }
-
     async function loadProfile() {
         try {
             const resp = await fetch("/api/user/profile", { credentials:"include" });
-            if (resp.redirected && resp.url.includes("/login")) {
-                window.location = resp.url;
-                return;
-            }
+            if (resp.redirected && resp.url.includes("/login")) { window.location = resp.url; return; }
             if (!resp.ok) return;
             userProfile = await resp.json();
-            const isAdmin = (userProfile.root === true) || (userProfile.permissions && userProfile.permissions.admin);
+            const isAdmin = userProfile.root === true || (userProfile.permissions && userProfile.permissions.admin);
             if (!isAdmin) {
                 adminTabBtn.classList.add("hidden");
                 adminTab.classList.add("hidden");
             }
-        } catch (_e) { /* ignore */ }
+        } catch {}
     }
 
-    async function fetchLogs(endpoint, startMs, endMs, typesArr, targetTbody, counterEl, btn) {
+    // ==== FETCH ====
+    async function fetchLogs(endpoint, mode, startMs, endMs, typesArr, btn) {
         clearMessages();
         setLoading(btn, true);
         try {
-            const query = buildQuery(startMs, endMs, typesArr);
-            const resp = await fetch(endpoint + (query ? ("?" + query) : ""), { credentials:"include" });
-            if (resp.redirected && resp.url.includes("/login")) {
-                window.location = resp.url;
-                return;
+            let url;
+            if (mode === "current") {
+                const params = new URLSearchParams();
+                if (typesArr && typesArr.length) params.set("type", typesArr.join(","));
+                url = endpoint + "/current" + (params.toString() ? "?" + params.toString() : "");
+            } else {
+                const query = buildQuery(startMs, endMs, typesArr);
+                url = endpoint + (query ? "?" + query : "");
             }
+            const resp = await fetch(url, { credentials:"include" });
+            if (resp.redirected && resp.url.includes("/login")) { window.location = resp.url; return []; }
             if (!resp.ok) {
                 const tx = await resp.text().catch(()=> "");
                 showError("Ошибка загрузки: " + (tx || resp.status));
-                renderLogs([], targetTbody, counterEl, endpoint === adminEndpoint);
-                return;
+                return [];
             }
             const data = await resp.json().catch(()=> []);
-            renderLogs(Array.isArray(data)? data : [], targetTbody, counterEl, endpoint === adminEndpoint);
+            return Array.isArray(data) ? data : [];
         } catch (e) {
             showError("Ошибка сети: " + e.message);
-            renderLogs([], targetTbody, counterEl, endpoint === adminEndpoint);
+            return [];
         } finally {
             setLoading(btn, false);
         }
     }
 
-    function renderLogs(list, tbody, counterEl, isAdmin) {
-        tbody.innerHTML = "";
-        counterEl.textContent = "Логов: " + list.length;
-        if (!list.length) {
-            const tr = document.createElement("tr");
-            const td = document.createElement("td");
-            td.colSpan = isAdmin ? 4 : 3;
-            td.style.padding = "14px";
-            td.style.textAlign = "center";
-            td.style.color = "var(--muted,#64748b)";
-            td.textContent = "Пусто";
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-            return;
-        }
-        list.sort((a,b)=> a.time - b.time);
-        for (const log of list) {
-            const tr = document.createElement("tr");
-
-            const timeTd = document.createElement("td");
-            timeTd.className = "nowrap mono";
-            timeTd.textContent = formatDate(log.time);
-            tr.appendChild(timeTd);
-
-            const typeTd = document.createElement("td");
-            typeTd.innerHTML = `<span class="log-type-badge">${log.type}</span>`;
-            tr.appendChild(typeTd);
-
-            const msgTd = document.createElement("td");
-            msgTd.className = "mono";
-            msgTd.textContent = log.message || "";
-            tr.appendChild(msgTd);
-
-            if (isAdmin) {
-                const sesTd = document.createElement("td");
-                sesTd.className = "mono nowrap";
-                sesTd.textContent = (log.sessionId != null) ? String(log.sessionId) : "-";
-                tr.appendChild(sesTd);
-            }
-
-            tbody.appendChild(tr);
-        }
+    // ==== RENDER / SORT ====
+    function sortSystem(list) {
+        return [...list].sort((a,b)=> systemSortAsc ? a.time - b.time : b.time - a.time);
     }
 
-    function attachTabHandlers() {
-        document.getElementById("tabs").addEventListener("click", async e => {
-            const btn = e.target.closest(".tab-btn");
-            if (!btn || btn.disabled) return;
-            const tab = btn.dataset.tab;
-            if (!tab) return;
-            [...document.querySelectorAll(".tab-btn")].forEach(b=> b.classList.toggle("active", b===btn));
-            [...document.querySelectorAll("main > section")].forEach(sec => {
-                sec.id === tab ? sec.classList.remove("hidden") : sec.classList.add("hidden");
-            });
-            clearMessages();
-            if (tab === "adminTab" && !adminLoaded && !adminTabBtn.classList.contains("hidden")) {
-                await loadAdminLogs();
-            }
-            if (tab === "systemTab" && !systemLoaded) {
-                await loadSystemLogs();
+    function sortAdmin(list) {
+        const { key, asc } = adminSort;
+        const mul = asc ? 1 : -1;
+        return [...list].sort((a,b) => {
+            if (key === "time") return (a.time - b.time) * mul;
+            if (key === "type") return a.type.localeCompare(b.type) * mul || (a.time - b.time) * -1;
+            if (key === "session") return (a.sessionId - b.sessionId) * mul || (a.time - b.time) * -1;
+            return (a.time - b.time) * mul;
+        });
+    }
+
+    function renderSystemLogs() {
+        const data = sortSystem(systemLogsData);
+        sysTableBody.innerHTML = "";
+        sysCount.textContent = "Логов: " + data.length;
+        if (!data.length) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.colSpan = 3;
+            td.style.padding = "14px";
+            td.style.textAlign = "center";
+            td.style.color = "#64748b";
+            td.textContent = "Пусто";
+            tr.appendChild(td);
+            sysTableBody.appendChild(tr);
+            return;
+        }
+        for (const log of data) {
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+                <td class="nowrap mono">${formatDate(log.time)}</td>
+                <td><span class="log-type-badge">${log.type}</span></td>
+                <td class="mono">${log.message || ""}</td>
+            `;
+            sysTableBody.appendChild(tr);
+        }
+        sysSortInd.classList.toggle("asc", systemSortAsc);
+        sysSortInd.classList.toggle("desc", !systemSortAsc);
+    }
+
+    function renderAdminLogs() {
+        const data = sortAdmin(adminLogsData);
+        admTableBody.innerHTML = "";
+        admCount.textContent = "Логов: " + data.length;
+        if (!data.length) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.colSpan = 4;
+            td.style.padding = "14px";
+            td.style.textAlign = "center";
+            td.style.color = "#64748b";
+            td.textContent = "Пусто";
+            tr.appendChild(td);
+            admTableBody.appendChild(tr);
+            updateAdminSortIndicators();
+            return;
+        }
+        for (const log of data) {
+            const tr = document.createElement("tr");
+            // Order: time, type, sessionId, message
+            tr.innerHTML = `
+                <td class="nowrap mono">${formatDate(log.time)}</td>
+                <td><span class="log-type-badge">${log.type}</span></td>
+                <td class="mono nowrap">${log.sessionId != null ? log.sessionId : "-"}</td>
+                <td class="mono">${log.message || ""}</td>
+            `;
+            admTableBody.appendChild(tr);
+        }
+        updateAdminSortIndicators();
+    }
+
+    function updateAdminSortIndicators() {
+        const all = [
+            {ind: admSortInd, key: "time"},
+            {ind: admTypeSortInd, key: "type"},
+            {ind: admSessionSortInd, key: "session"}
+        ];
+        all.forEach(({ind, key}) => {
+            ind.classList.remove("asc","desc");
+            if (adminSort.key === key) {
+                ind.classList.add(adminSort.asc ? "asc":"desc");
             }
         });
     }
 
-    function dtInputsEnter(inputs, button) {
-        inputs.forEach(inp => inp.addEventListener("keydown", e=>{
-            if (e.key === "Enter") button.click();
-        }));
+    // ==== LOAD WRAPPERS ====
+    async function loadSystem(mode = "range") {
+        const startMs = mode === "range" ? dtLocalToEpochMs(sysStart) : null;
+        const endMs = mode === "range" ? dtLocalToEpochMs(sysEnd) : null;
+        const types = getCheckedTypes(sysTypesList);
+        systemLastMode = mode;
+        systemLogsData = await fetchLogs(systemEndpoint, mode, startMs, endMs, types, mode === "current" ? sysCurrentBtn : sysLoadBtn);
+        sysFetchInfo.textContent = mode === "current" ? "Показаны текущие логи" : "";
+        renderSystemLogs();
     }
 
-    // ===== LOAD WRAPPERS =====
-    function loadSystemLogs() {
-        const startMs = dtLocalToEpochMs(sysStart);
-        const endMs = dtLocalToEpochMs(sysEnd);
-        const types = getChecked(sysTypesGrid);
-        systemLoaded = true;
-        return fetchLogs(systemEndpoint, startMs, endMs, types, sysTableBody, sysCount, sysLoadBtn);
-    }
-    function loadAdminLogs() {
-        const startMs = dtLocalToEpochMs(admStart);
-        const endMs = dtLocalToEpochMs(admEnd);
-        const types = getChecked(admTypesGrid);
-        adminLoaded = true;
-        return fetchLogs(adminEndpoint, startMs, endMs, types, admTableBody, admCount, admLoadBtn);
+    async function loadAdmin(mode = "range") {
+        const startMs = mode === "range" ? dtLocalToEpochMs(admStart) : null;
+        const endMs = mode === "range" ? dtLocalToEpochMs(admEnd) : null;
+        const types = getCheckedTypes(admTypesList);
+        adminLastMode = mode;
+        adminLogsData = await fetchLogs(adminEndpoint, mode, startMs, endMs, types, mode === "current" ? admCurrentBtn : admLoadBtn);
+        admFetchInfo.textContent = mode === "current" ? "Показаны текущие логи" : "";
+        renderAdminLogs();
     }
 
-    // ===== EVENTS =====
-    sysLoadBtn.addEventListener("click", loadSystemLogs);
+    // ==== EVENTS: System ====
+    sysLoadBtn.addEventListener("click", () => loadSystem("range"));
+    sysCurrentBtn.addEventListener("click", () => loadSystem("current"));
+    sysDownloadBtn.addEventListener("click", () => {
+        if (systemLastMode === "current") { showError("Скачивание 'текущих' не поддерживается. Переключитесь на интервал."); return; }
+        downloadRange(systemEndpoint, dtLocalToEpochMs(sysStart), dtLocalToEpochMs(sysEnd), getCheckedTypes(sysTypesList));
+    });
     sysClearBtn.addEventListener("click", () => {
         sysStart.value = "";
         sysEnd.value = "";
-        setAll(sysTypesGrid, false);
-        clearMessages();
-        sysTableBody.innerHTML = "";
+        setAllTypes(sysTypesList,false);
+        systemLogsData = [];
         sysCount.textContent = "";
-        systemLoaded = false;
+        sysFetchInfo.textContent = "";
+        renderSystemLogs();
+        showOk("Очищено");
     });
-    sysDownloadBtn.addEventListener("click", () => {
-        const startMs = dtLocalToEpochMs(sysStart);
-        const endMs = dtLocalToEpochMs(sysEnd);
-        downloadLogs(systemEndpoint, startMs, endMs, getChecked(sysTypesGrid));
+    sysSelectAllTypes.addEventListener("click", () => setAllTypes(sysTypesList, true));
+    sysClearTypes.addEventListener("click", () => setAllTypes(sysTypesList, false));
+    sysTimeHeader.addEventListener("click", () => {
+        systemSortAsc = !systemSortAsc;
+        renderSystemLogs();
     });
-    sysSelectAllTypes.addEventListener("click", () => setAll(sysTypesGrid, true));
-    sysClearTypes.addEventListener("click", () => setAll(sysTypesGrid, false));
+    sysTimeHeader.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sysTimeHeader.click(); }
+    });
 
-    admLoadBtn.addEventListener("click", loadAdminLogs);
+    // ==== EVENTS: Admin ====
+    admLoadBtn.addEventListener("click", () => loadAdmin("range"));
+    admCurrentBtn.addEventListener("click", () => loadAdmin("current"));
+    admDownloadBtn.addEventListener("click", () => {
+        if (adminLastMode === "current") { showError("Скачивание 'текущих' не поддерживается. Переключитесь на интервал."); return; }
+        downloadRange(adminEndpoint, dtLocalToEpochMs(admStart), dtLocalToEpochMs(admEnd), getCheckedTypes(admTypesList));
+    });
     admClearBtn.addEventListener("click", () => {
         admStart.value = "";
         admEnd.value = "";
-        setAll(admTypesGrid, false);
-        clearMessages();
-        admTableBody.innerHTML = "";
+        setAllTypes(admTypesList,false);
+        adminLogsData = [];
         admCount.textContent = "";
-        adminLoaded = false;
+        admFetchInfo.textContent = "";
+        renderAdminLogs();
+        showOk("Очищено");
     });
-    admDownloadBtn.addEventListener("click", () => {
-        const startMs = dtLocalToEpochMs(admStart);
-        const endMs = dtLocalToEpochMs(admEnd);
-        downloadLogs(adminEndpoint, startMs, endMs, getChecked(admTypesGrid));
-    });
-    admSelectAllTypes.addEventListener("click", () => setAll(admTypesGrid, true));
-    admClearTypes.addEventListener("click", () => setAll(admTypesGrid, false));
+    admSelectAllTypes.addEventListener("click", () => setAllTypes(admTypesList, true));
+    admClearTypes.addEventListener("click", () => setAllTypes(admTypesList, false));
 
-    dtInputsEnter([sysStart, sysEnd], sysLoadBtn);
-    dtInputsEnter([admStart, admEnd], admLoadBtn);
-
-    // ===== INIT =====
-    function init() {
-        buildCheckboxGrid(sysTypesGrid, SYSTEM_TYPES);
-        buildCheckboxGrid(admTypesGrid, ADMIN_TYPES);
-        applyDefaultInterval();
-        attachTabHandlers();
-        loadProfile().then(() => {
-            // Автозагрузка system логов
-            loadSystemLogs();
-        });
+    function toggleAdminSort(key) {
+        if (adminSort.key === key) {
+            adminSort.asc = !adminSort.asc;
+        } else {
+            adminSort.key = key;
+            adminSort.asc = key !== "time"; // для time по умолчанию desc (false), для других asc
+        }
+        renderAdminLogs();
     }
 
+    [admTimeHeader, admTypeHeader, admSessionHeader].forEach(header => {
+        header.addEventListener("click", () => toggleAdminSort(
+            header === admTimeHeader ? "time" :
+                header === admTypeHeader ? "type" : "session"
+        ));
+        header.addEventListener("keydown", e => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                header.click();
+            }
+        });
+    });
+
+    // ==== Tabs ====
+    document.getElementById("tabs").addEventListener("click", async e => {
+        const btn = e.target.closest(".tab-btn");
+        if (!btn || btn.disabled) return;
+        const tab = btn.dataset.tab;
+        if (!tab) return;
+        [...document.querySelectorAll(".tab-btn")].forEach(b => b.classList.toggle("active", b === btn));
+        systemTab.classList.toggle("hidden", tab !== "systemTab");
+        adminTab.classList.toggle("hidden", tab !== "adminTab");
+        clearMessages();
+        if (tab === "systemTab" && systemLogsData.length === 0) await loadSystem("current");
+        if (tab === "adminTab" && adminLogsData.length === 0 && !adminTabBtn.classList.contains("hidden")) await loadAdmin("current");
+    });
+
+    // Date inputs Enter -> refresh
+    [sysStart, sysEnd].forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") sysLoadBtn.click(); }));
+    [admStart, admEnd].forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") admLoadBtn.click(); }));
+
+    // ==== INIT ====
+    function init() {
+        buildTypesList(sysTypesList, SYSTEM_TYPES);
+        buildTypesList(admTypesList, ADMIN_TYPES);
+        applyDefaultInterval();
+        loadProfile().then(() => {
+            loadSystem("current"); // default
+        });
+    }
     init();
 })();

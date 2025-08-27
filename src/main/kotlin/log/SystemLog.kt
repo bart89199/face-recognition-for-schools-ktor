@@ -10,6 +10,7 @@ import io.ktor.server.routing.routing
 import io.ktor.util.reflect.typeInfo
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
+import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -69,21 +70,22 @@ object SystemLogService :
         }
     }
 
-    suspend fun log(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit =
-        suspendTransaction {
-            table.insert {
-                it[table.type] = type
-                it[table.time] = time
-                it[table.message] = message
-            }
-        }
-
-    fun logB(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit = transaction {
+    private fun Transaction.addLog(type: SystemLogType, message: String, time: Long) {
         table.insert {
             it[table.type] = type
             it[table.time] = time
             it[table.message] = message
         }
+        addLog(SystemLog(type, time, message))
+    }
+
+    suspend fun log(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit =
+        suspendTransaction {
+            addLog(type, message, time)
+        }
+
+    fun logB(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit = transaction {
+        addLog(type, message, time)
     }
 
 }

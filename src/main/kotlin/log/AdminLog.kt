@@ -10,6 +10,7 @@ import io.ktor.server.routing.routing
 import io.ktor.util.reflect.typeInfo
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
+import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -45,7 +46,7 @@ data class AdminLog(
     val sessionId: Int
 ) : LogModel<AdminLogType>() {
     override fun toString(): String {
-        return super.toString()
+        return "[${time.toDateString()}] [$type] [session: $sessionId]: $message"
     }
 }
 
@@ -74,27 +75,32 @@ object AdminLogService :
         }
     }
 
-    suspend fun log(
+    private fun Transaction.addLog(
         type: AdminLogType,
         message: String,
         sessionId: Int,
-        time: Long = System.currentTimeMillis()
-    ): Unit = suspendTransaction {
+        time: Long
+    ) {
         table.insert {
             it[table.type] = type
             it[table.time] = time
             it[table.message] = message
             it[table.sessionId] = sessionId
         }
+        addLog(AdminLog(type, time, message, sessionId))
+    }
+
+    suspend fun log(
+        type: AdminLogType,
+        message: String,
+        sessionId: Int,
+        time: Long = System.currentTimeMillis()
+    ): Unit = suspendTransaction {
+        addLog(type, message, sessionId, time)
     }
 
     fun logB(type: AdminLogType, message: String, sessionId: Int, time: Long = System.currentTimeMillis()): Unit =
         transaction {
-            table.insert {
-                it[table.type] = type
-                it[table.time] = time
-                it[table.message] = message
-                it[table.sessionId] = sessionId
-            }
+            addLog(type, message, sessionId, time)
         }
 }
