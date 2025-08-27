@@ -45,6 +45,10 @@ fun Application.module() {
     }
 
     SystemSettingsService.configureRouting(this)
+    
+    // Enable for testing only - comment out when authentication is fully configured
+    configureSerialization()
+    configureRouting()
 
 
 //    loadLogConsts()
