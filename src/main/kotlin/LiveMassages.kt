@@ -6,17 +6,16 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
 
-private const val HISTORY_LIMIT = 50
 
-class LiveMessages {
+class LiveMessages(val historyLength: Int) {
 
     private val sessions = ConcurrentHashMap.newKeySet<DefaultWebSocketServerSession>()
-    private val history = ArrayDeque<String>(HISTORY_LIMIT)
+    private val history = ArrayDeque<String>(historyLength)
     private val historyLock = Mutex()
 
     suspend fun send(text: String) {
         historyLock.withLock {
-            if (history.size == HISTORY_LIMIT) history.removeFirst()
+            if (history.size == historyLength) history.removeFirst()
             history.addLast(text)
         }
         val frame = Frame.Text(text)

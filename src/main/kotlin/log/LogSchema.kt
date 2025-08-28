@@ -85,7 +85,7 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
         }
     }
 
-    protected val liveMassages = LiveMessages()
+    protected val liveMassages = LiveMessages(currentLogAmount)
 
     protected fun Route.configureLogManagers(logListTypeInfo: TypeInfo) {
         get {
