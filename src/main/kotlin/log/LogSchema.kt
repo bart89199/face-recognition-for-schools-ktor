@@ -1,9 +1,11 @@
 package com.batr.log
 
+import com.batr.LiveMessages
 import com.batr.auth.getSession
 import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
 import com.batr.database.Database.suspendTransaction
+import com.batr.pythonConnection.PythonConnection
 import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -18,8 +20,16 @@ import io.ktor.server.routing.RoutingContext
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.websocket.webSocket
 import io.ktor.util.reflect.TypeInfo
 import io.ktor.util.reflect.typeInfo
+import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.serialization.SerializationStrategy
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.Query
@@ -57,6 +67,7 @@ abstract class LogTable<T : Enum<T>>(typeClass: KClass<T>) : IntIdTable() {
 abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
     protected val table: LT,
     protected val fetchLogType: (String) -> T,
+    protected val serializer: SerializationStrategy<L>
 ) {
     fun load() {
         transaction {
@@ -66,12 +77,15 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
 
     protected val currentLogs: MutableList<L> = ArrayList()
 
-    protected fun addLog(log: L) {
+    protected suspend fun addLog(log: L) {
         currentLogs.add(log)
+        liveMassages.send(Json.encodeToString(serializer, log))
         while (currentLogs.size >= currentLogAmount && currentLogAmount != -1) {
             currentLogs.removeFirst()
         }
     }
+
+    protected val liveMassages = LiveMessages()
 
     protected fun Route.configureLogManagers(logListTypeInfo: TypeInfo) {
         get {
@@ -96,6 +110,26 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
             val fileName = "[${System.currentTimeMillis().toDateString()}] current-logs.txt"
             session.log(AdminLogType.LOGS_DOWNLOAD, "Download current logs")
             respondLogsFile(currentLogs, fileName, logListTypeInfo)
+        }
+
+        webSocket("/ws") {
+            liveMassages.register(this)
+            try {
+                for (frame in incoming) {
+                    if (frame is Frame.Text) {
+                        val t = frame.readText()
+                        if (t.equals("ping", true)) {
+                            send(Frame.Text("pong"))
+                        }
+                    }
+                    if (frame is Frame.Close) {
+                        liveMassages.unregister(this)
+                        break
+                    }
+                }
+            } finally {
+                liveMassages.unregister(this)
+            }
         }
 
     }
