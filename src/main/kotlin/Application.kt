@@ -68,7 +68,6 @@ fun Application.module() {
         Records.configureRouting(this)
 
         configureStreaming()
-        configureDoor()
         configureInfo()
         configureTest()
 

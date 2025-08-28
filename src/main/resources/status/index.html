@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Статус системы</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link rel="preload" href="/status/script.js" as="script">
+    <style>
+        :root {
+            font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+            color-scheme: light dark;
+        }
+        body { margin:0; background:#0f172a; color:#f1f5f9; }
+        header {
+            position:sticky; top:0; background:#1e293b; padding:14px 24px;
+            display:flex; justify-content:space-between; align-items:center;
+            box-shadow:0 2px 6px rgba(0,0,0,.45); z-index:10;
+        }
+        h1 { margin:0; font-size:1.05rem; letter-spacing:.5px; }
+        nav { display:flex; gap:10px; flex-wrap:wrap; }
+        button {
+            font:inherit; cursor:pointer; border:none; border-radius:10px; padding:8px 14px;
+            font-weight:600; background:#2563eb; color:#fff; font-size:.72rem;
+            display:inline-flex; align-items:center; gap:6px; transition:.15s background;
+        }
+        button.outline { background:#1e293b; border:1px solid #334155; }
+        button.outline:hover { background:#334155; }
+        button.danger { background:#dc2626; }
+        button.danger:hover { background:#b91c1c; }
+
+        main { max-width:900px; margin:26px auto 100px; padding:0 24px 40px; }
+
+        .panel {
+            background:#1e293b; border-radius:26px; padding:28px 30px 34px;
+            box-shadow:0 4px 22px rgba(0,0,0,.55); display:flex; flex-direction:column; gap:28px;
+        }
+
+        .top-row { display:flex; flex-wrap:wrap; justify-content:space-between; gap:18px; align-items:center; }
+        .last-update { font-size:.65rem; letter-spacing:.05em; color:#94a3b8; }
+
+        .grid {
+            display:grid; gap:24px;
+            grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+        }
+
+        .metric {
+            position:relative; background:#162132; border:1px solid #243044;
+            border-radius:20px; padding:20px 18px 22px;
+            display:flex; flex-direction:column; gap:10px; min-height:140px;
+        }
+        .metric h3 {
+            margin:0; font-size:.62rem; letter-spacing:.07em; text-transform:uppercase;
+            font-weight:600; color:#93a3b8;
+        }
+        .value { font-size:1.55rem; font-weight:600; letter-spacing:.4px; }
+        .small { font-size:.6rem; letter-spacing:.04em; color:#94a3b8; line-height:1.3; }
+        .status-ok { color:#10b981; }
+        .status-bad { color:#dc2626; }
+
+        .ws-badge {
+            position:absolute; top:10px; right:12px; font-size:.55rem;
+            background:#334155; color:#fff; padding:4px 8px;
+            border-radius:999px; font-weight:600; letter-spacing:.05em;
+        }
+        .ws-badge.connected { background:#059669; }
+        .ws-badge.connecting { background:#6366f1; }
+        .ws-badge.closed { background:#dc2626; }
+
+        @media (prefers-color-scheme: light) {
+            body { background:#f5f7fb; color:#0f172a; }
+            header { background:#1e293b; color:#fff; }
+            .panel { background:#fff; box-shadow:0 4px 22px rgba(0,0,0,.08); }
+            .metric { background:#f1f5f9; border-color:#e2e8f0; }
+            button.outline { background:#fff; border:1px solid #cbd5e1; color:#1e293b; }
+            button.outline:hover { background:#e2e8f0; }
+            .ws-badge { background:#475569; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Статус системы</h1>
+    <nav>
+        <button class="outline" onclick="location.href='/'">Главная</button>
+        <button class="outline" onclick="location.href='/profile'">Профиль</button>
+        <button class="outline" onclick="location.href='/settings'">Настройки</button>
+        <button class="outline" onclick="location.href='/logs'">Логи</button>
+        <button class="danger" onclick="location.href='/logout'">Выйти</button>
+    </nav>
+</header>
+<main>
+    <section class="panel" aria-labelledby="panelTitle">
+        <div class="top-row">
+            <h2 id="panelTitle" style="margin:0;font-size:1rem;">Текущее состояние</h2>
+            <div class="last-update" id="lastUpdate">Последнее обновление: —</div>
+        </div>
+        <div class="grid">
+            <div class="metric" id="doorMetric">
+                <div id="wsState" class="ws-badge connecting" aria-live="polite">CONNECTING</div>
+                <h3>Дверь</h3>
+                <div class="value" id="doorValue">—</div>
+                <div class="small" id="doorHint">Нет данных</div>
+            </div>
+            <div class="metric">
+                <h3>Последнее распознавание</h3>
+                <div class="value" id="lastRecognized">—</div>
+                <div class="small" id="recognitionHint">Ожидание данных…</div>
+            </div>
+        </div>
+    </section>
+</main>
+<script src="/status/script.js" defer></script>
+</body>
+</html>

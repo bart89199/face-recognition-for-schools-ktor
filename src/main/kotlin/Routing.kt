@@ -49,6 +49,10 @@ fun Application.configureRouting() {
                 staticResources("/records", "records")
             }
 
+            setPermissions(UserPermissions(status = true)) {
+                staticResources("/status", "status")
+            }
+
             staticResources("/profile", "profile")
         }
 
