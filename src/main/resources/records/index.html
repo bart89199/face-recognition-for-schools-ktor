@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Записи</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link rel="preload" href="/records/script.js" as="script">
+    <style>
+        :root { font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif; color-scheme: light dark; }
+        body { margin:0; background:#0f172a; color:#f1f5f9; }
+        header {
+            position:sticky; top:0; background:#1e293b; padding:14px 22px;
+            display:flex; align-items:center; justify-content:space-between; gap:18px; z-index:50;
+            box-shadow:0 2px 6px rgba(0,0,0,.4);
+        }
+        h1 { margin:0; font-size:1.05rem; letter-spacing:.5px; }
+        main { max-width:1400px; margin:24px auto 90px; padding:0 22px 60px; display:flex; flex-direction:column; gap:26px; }
+
+        .card {
+            background:#1e293b; border-radius:22px; padding:26px 28px 34px;
+            box-shadow:0 4px 18px rgba(0,0,0,.55);
+        }
+
+        button {
+            font:inherit; cursor:pointer; border:none; border-radius:10px;
+            padding:9px 16px; font-weight:600; background:#2563eb; color:#fff;
+            display:inline-flex; gap:8px; align-items:center; transition:.15s background;
+            font-size:.72rem;
+        }
+        button:hover { background:#1d4ed8; }
+        button:disabled { opacity:.55; cursor:not-allowed; }
+        button.outline { background:#1e293b; border:1px solid #334155; }
+        button.outline:hover { background:#334155; }
+        button.danger { background:#dc2626; }
+        button.danger:hover { background:#b91c1c; }
+        button.gray { background:#475569; }
+        button.gray:hover { background:#334155; }
+
+        .controls { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end; }
+
+        label.lbl { font-size:.6rem; text-transform:uppercase; letter-spacing:.07em; color:#94a3b8; display:flex; flex-direction:column; gap:6px; }
+        input[type=datetime-local], input[type=text] {
+            padding:7px 10px; border:1px solid #334155; border-radius:9px; background:#0f172a; color:#f1f5f9;
+            font:inherit; font-size:.7rem; min-width:210px;
+        }
+        input:focus { outline:none; border-color:#3b82f6; box-shadow:0 0 0 2px rgba(59,130,246,.35); }
+
+        table {
+            width:100%; border-collapse:separate; border-spacing:0; background:#162132;
+            border-radius:18px; overflow:hidden; font-size:.72rem;
+        }
+        th, td { padding:9px 12px; border-bottom:1px solid #243044; text-align:left; vertical-align:middle; }
+        th { background:#0f172a; font-size:.58rem; letter-spacing:.06em; text-transform:uppercase; font-weight:600; color:#93a3b8; cursor:pointer; }
+        tbody tr:last-child td { border-bottom:none; }
+        tbody tr.selected { background:#1e3a8a66; }
+        tbody tr:hover { background:#1e2f47; }
+
+        .mono { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas,"Liberation Mono", monospace; }
+        .muted { font-size:.63rem; color:#94a3b8; }
+
+        .badge {
+            display:inline-block; padding:3px 7px 4px; border-radius:999px; font-size:.55rem;
+            background:#334155; color:#f1f5f9; letter-spacing:.05em; font-weight:600;
+        }
+
+        .toast {
+            position:fixed; top:20px; right:20px; background:#2563eb;
+            padding:10px 16px; border-radius:12px; font-size:.7rem; font-weight:500;
+            display:flex; gap:10px; align-items:center; box-shadow:0 4px 18px rgba(0,0,0,.5);
+            animation:fadeSlide .25s ease; z-index:1100;
+        }
+        .toast.error { background:#b91c1c; }
+        @keyframes fadeSlide { from { opacity:0; transform:translateY(-6px);} to { opacity:1; transform:translateY(0);} }
+
+        .spinner { width:16px; height:16px; border:3px solid rgba(255,255,255,.4); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg);} }
+
+        @media (prefers-color-scheme: light) {
+            body { background:#f5f7fb; color:#0f172a; }
+            .card { background:#fff; box-shadow:0 4px 18px rgba(0,0,0,.08); }
+            table { background:#fff; }
+            th { background:#f1f5f9; color:#475569; }
+            input { background:#fff; color:#0f172a; border-color:#cbd5e1; }
+            input:focus { box-shadow:0 0 0 2px rgba(59,130,246,.35); }
+            button.outline { background:#fff; border-color:#cbd5e1; }
+            button.outline:hover { background:#f1f5f9; }
+            .toast { background:#2563eb; }
+            .toast.error { background:#dc2626; }
+        }
+
+    </style>
+</head>
+<body>
+<header>
+    <h1>Записи</h1>
+    <nav style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="outline" onclick="location.href='/'">Главная</button>
+        <button class="outline" onclick="location.href='/profile'">Профиль</button>
+        <button class="outline" onclick="location.href='/logs'">Логи</button>
+        <button class="outline" onclick="location.href='/settings'">Настройки</button>
+        <button class="danger" onclick="location.href='/logout'">Выйти</button>
+    </nav>
+</header>
+<main>
+    <section class="card">
+        <div class="controls" style="margin-bottom:14px;">
+            <label class="lbl">Начало
+                <input type="datetime-local" id="startInput">
+            </label>
+            <label class="lbl">Окончание
+                <input type="datetime-local" id="endInput">
+            </label>
+            <label class="lbl">Имя файла (часть)
+                <input type="text" id="nameFilter" placeholder="Например: cam, 2025-08">
+            </label>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button id="loadBtn"><span class="btn-text">Обновить</span></button>
+                <button id="clearBtn" class="outline gray">Сбросить</button>
+                <button id="downloadSelectedBtn" class="outline" disabled>Скачать выбранные</button>
+                <button id="toggleSelectAllBtn" class="outline">Выделить все</button>
+            </div>
+        </div>
+        <div class="muted" id="metaLine">—</div>
+
+        <div style="overflow:auto; max-height:64vh; border-radius:18px; margin-top:14px;">
+            <table id="recordsTable" aria-describedby="metaLine">
+                <thead>
+                <tr>
+                    <th data-sort="filename">Файл</th>
+                    <th data-sort="created">Создано</th>
+                    <th data-sort="lastModified">Изм.</th>
+                    <th style="width:70px;">Download</th>
+                </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <div class="muted" id="emptyState" style="display:none; padding:20px 6px;">Нет записей. Измени фильтры и нажми Обновить.</div>
+    </section>
+</main>
+
+<div id="toast" class="toast" style="display:none;"></div>
+
+<script src="/records/script.js" defer></script>
+</body>
+</html>

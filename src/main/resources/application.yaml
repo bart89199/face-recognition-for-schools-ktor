@@ -25,3 +25,5 @@ stream:
   path: "/home/danil/testweb/hls"
 records:
   path: "/home/danil/testweb/records"
+python:
+  bearer-token: $PY_TOKEN

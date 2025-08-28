@@ -6,6 +6,7 @@ import com.batr.log.AdminLogService
 import com.batr.log.SystemLogService
 import com.batr.log.SystemLogType
 import com.batr.log.loadLogConst
+import com.batr.pythonConnection.PythonConnection
 import com.batr.settings.SystemSettingsService
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
@@ -46,6 +47,7 @@ fun Application.module() {
 
 
 
+
         loadLogConst()
         Records.load(this)
 
@@ -69,6 +71,8 @@ fun Application.module() {
         configureDoor()
         configureInfo()
         configureTest()
+
+        PythonConnection.configureRouting(this)
 
     } catch (e: Throwable) {
         e.printStackTrace()

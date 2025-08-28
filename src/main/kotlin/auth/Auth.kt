@@ -21,6 +21,7 @@ fun Application.configureAuth() {
     install(Authentication) {
         configureGoogleOauthPlugin(this@configureAuth)
         configureSessionAuthPlugin()
+        configureBeaterAuthPlugin(this@configureAuth)
     }
     configureGoogleOauthRooting()
 

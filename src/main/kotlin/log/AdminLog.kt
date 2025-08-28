@@ -22,7 +22,6 @@ enum class AdminLogType {
     USER_UPDATE,
     USER_DELETE,
     SESSION_DELETE,
-    DOOR,
     LOGS_DOWNLOAD,
     RECORD_DOWNLOAD,
     SETTINGS_CHANGE,

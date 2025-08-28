@@ -29,7 +29,7 @@ object Records {
 
     fun getRecordsList(): List<RecordModel> = recordsFolder.list().filter { it.contains(".") }.mapNotNull {
         try {
-            val attributes = Files.readAttributes(Path(recordsFolder.path,it), BasicFileAttributes::class.java)
+            val attributes = Files.readAttributes(Path(recordsFolder.path, it), BasicFileAttributes::class.java)
             RecordModel(it, attributes.creationTime().toMillis(), attributes.lastModifiedTime().toMillis())
         } catch (_: UnsupportedOperationException) {
             null
@@ -45,6 +45,15 @@ object Records {
         return file
     }
 
+    fun getRecordsListFiltered(start: Long?, end: Long?): List<RecordModel> {
+        val all = getRecordsList()
+        if (start == null && end == null) return all
+        return all.filter {
+            val c = it.created
+            (start == null || c >= start) && (end == null || c <= end)
+        }
+    }
+
     fun configureRouting(app: Application) {
         app.routing {
             authenticate("session-auth") {
@@ -53,7 +62,15 @@ object Records {
                         get {
                             val filename = call.queryParameters["filename"]
                             if (filename == null) {
-                                call.respond(getRecordsList())
+                                val start = call.request.queryParameters["start"]?.toLongOrNull()
+                                val end = call.request.queryParameters["end"]?.toLongOrNull()
+                                if (start != null && end != null && start > end) {
+                                    call.respond(HttpStatusCode.BadRequest, "start must be <= end")
+                                    return@get
+                                }
+
+                                val list = getRecordsListFiltered(start, end).sortedBy { it.created }
+                                call.respond(list)
                                 return@get
                             }
 
