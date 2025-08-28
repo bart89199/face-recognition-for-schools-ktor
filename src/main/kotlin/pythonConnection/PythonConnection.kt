@@ -50,8 +50,8 @@ object PythonConnection {
             authenticate("bearer-auth") {
                 route("api/py") {
                     post("/status") {
-                        val newStatus = call.receive<SystemStatus>()
-                        updateStatus(newStatus)
+                        val newStatus = call.receive<RawSystemStatus>()
+                        updateStatus(SystemStatus(System.currentTimeMillis(), newStatus.door, newStatus.recognitions))
                         call.respond(HttpStatusCode.OK)
                     }
                 }
@@ -61,7 +61,14 @@ object PythonConnection {
 }
 
 @Serializable
+data class RawSystemStatus(
+    val door: Boolean,
+    val recognitions: List<String>
+)
+
+@Serializable
 data class SystemStatus(
+    val time: Long,
     val door: Boolean,
     val recognitions: List<String>
 )

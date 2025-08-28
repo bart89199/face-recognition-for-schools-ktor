@@ -12,7 +12,10 @@ import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
+import io.ktor.websocket.readText
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
@@ -32,15 +35,33 @@ fun Application.configureInfo() {
                         call.respond(status)
                     }
                     webSocket("/ws") {
-                        try {
+                        val statusJob: Job = launch {
                             while (true) {
-                                val status = PythonConnection.systemStatus
-                                if (status != null) {
+                                PythonConnection.systemStatus?.let { status ->
                                     outgoing.send(Frame.Text(Json.encodeToString(status)))
                                 }
-                                delay(100)
+                                delay(200)
                             }
-                        } catch (_: Exception) {
+                        }
+
+                        try {
+                            for (frame in incoming) {
+                                when (frame) {
+                                    is Frame.Ping -> {
+                                    }
+                                    is Frame.Pong -> {
+                                    }
+                                    is Frame.Close -> {
+                                        break
+                                    }
+                                    else -> {
+
+                                    }
+                                }
+                            }
+                        } catch (_: Throwable) {
+                        } finally {
+                            statusJob.cancel()
                         }
                     }
                 }
