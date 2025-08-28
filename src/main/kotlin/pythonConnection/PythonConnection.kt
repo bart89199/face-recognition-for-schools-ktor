@@ -70,6 +70,7 @@ object PythonConnection {
                             val session = call.getSession() ?: return@post
                             session.log(AdminLogType.FORCE_DOOR, "changed $forceDoor to ${newStatus.status}")
                             forceDoor = newStatus.status
+                            call.respond(HttpStatusCode.OK)
                         }
                     }
                 }
