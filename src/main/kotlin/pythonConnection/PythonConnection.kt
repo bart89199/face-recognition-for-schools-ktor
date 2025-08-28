@@ -55,7 +55,7 @@ object PythonConnection {
                     post("/status") {
                         val newStatus = call.receive<RawSystemStatus>()
                         updateStatus(SystemStatus(System.currentTimeMillis(), newStatus.door, newStatus.recognitions))
-                        call.respond(HttpStatusCode.OK, DoorForceStatus(forceDoor))
+                        call.respond(HttpStatusCode.OK, DoorForceStatus(forceDoor ?: newStatus.door))
                     }
                 }
             }
