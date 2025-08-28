@@ -10,7 +10,11 @@ import io.ktor.server.response.respond
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import io.ktor.server.websocket.webSocket
+import io.ktor.websocket.Frame
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 
 fun Application.configureInfo() {
@@ -26,6 +30,18 @@ fun Application.configureInfo() {
                             return@get
                         }
                         call.respond(status)
+                    }
+                    webSocket("/ws") {
+                        try {
+                            while (true) {
+                                val status = PythonConnection.systemStatus
+                                if (status != null) {
+                                    outgoing.send(Frame.Text(Json.encodeToString(status)))
+                                }
+                                delay(100)
+                            }
+                        } catch (_: Exception) {
+                        }
                     }
                 }
             }
