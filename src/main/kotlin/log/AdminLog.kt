@@ -8,6 +8,7 @@ import io.ktor.server.auth.authenticate
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.util.reflect.typeInfo
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.Transaction
@@ -55,7 +56,7 @@ object AdminLogTable : LogTable<AdminLogType>(AdminLogType::class) {
 }
 
 object AdminLogService :
-    LogService<AdminLogType, AdminLog, AdminLogTable>(AdminLogTable, ::enumValueOf) {
+    LogService<AdminLogType, AdminLog, AdminLogTable>(AdminLogTable, ::enumValueOf, AdminLog.serializer()) {
     override fun Query.toModel(): List<AdminLog> = map {
         AdminLog(
             type = it[AdminLogTable.type],
@@ -87,7 +88,6 @@ object AdminLogService :
             it[table.message] = message
             it[table.sessionId] = sessionId
         }
-        addLog(AdminLog(type, time, message, sessionId))
     }
 
     suspend fun log(
@@ -95,12 +95,19 @@ object AdminLogService :
         message: String,
         sessionId: Int,
         time: Long = System.currentTimeMillis()
-    ): Unit = suspendTransaction {
-        addLog(type, message, sessionId, time)
+    ): Unit {
+        suspendTransaction {
+            addLog(type, message, sessionId, time)
+        }
+        addLog(AdminLog(type, time, message, sessionId))
     }
 
-    fun logB(type: AdminLogType, message: String, sessionId: Int, time: Long = System.currentTimeMillis()): Unit =
+    fun logB(type: AdminLogType, message: String, sessionId: Int, time: Long = System.currentTimeMillis()): Unit {
         transaction {
             addLog(type, message, sessionId, time)
         }
+        runBlocking {
+            addLog(AdminLog(type, time, message, sessionId))
+        }
+    }
 }

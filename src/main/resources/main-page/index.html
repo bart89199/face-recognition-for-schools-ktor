@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Главная</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <link rel="preload" href="/main-page/favicon.ico" as="image">
+    <style>
+        :root {
+            font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
+            color-scheme: light dark;
+        }
+        * { box-sizing:border-box; }
+        body {
+            margin:0;
+            display:flex;
+            min-height:100vh;
+            background:#0f172a;
+            color:#f1f5f9;
+            overflow:hidden;
+        }
+        header {
+            position:fixed;
+            top:0; left:0; right:0;
+            background:#1e293b;
+            padding:10px 18px;
+            display:flex;
+            align-items:center;
+            gap:12px;
+            z-index:40;
+            box-shadow:0 2px 6px rgba(0,0,0,.4);
+        }
+        header h1 {
+            margin:0;
+            font-size:1rem;
+            letter-spacing:.5px;
+            font-weight:600;
+        }
+        header nav {
+            margin-left:auto;
+            display:flex;
+            flex-wrap:wrap;
+            gap:8px;
+        }
+        button, .btn {
+            font:inherit;
+            cursor:pointer;
+            border:none;
+            border-radius:8px;
+            padding:8px 14px;
+            font-weight:600;
+            font-size:.72rem;
+            letter-spacing:.03em;
+            background:#2563eb;
+            color:#fff;
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            transition:.15s background;
+        }
+        button:hover, .btn:hover { background:#1d4ed8; }
+        button.outline {
+            background:transparent;
+            border:1px solid #334155;
+        }
+        button.outline:hover {
+            background:#334155;
+        }
+        button.danger { background:#dc2626; }
+        button.danger:hover { background:#b91c1c; }
+        button.secondary { background:#475569; }
+        button.secondary:hover { background:#334155; }
+        button:disabled { opacity:.55; cursor:not-allowed; }
+
+        main {
+            flex:1;
+            display:flex;
+            padding-top:58px;
+            height:100vh;
+            width:100%;
+            overflow:hidden;
+        }
+        .layout {
+            flex:1;
+            display:flex;
+            padding:14px 16px 16px;
+            gap:14px;
+            height:100%;
+            overflow:hidden;
+        }
+        .col-main {
+            flex:1;
+            display:flex;
+            flex-direction:column;
+            gap:12px;
+            min-width:0;
+        }
+        .video-wrap {
+            position:relative;
+            background:#000;
+            border-radius:18px;
+            overflow:hidden;
+            aspect-ratio:16/9;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            box-shadow:0 4px 16px rgba(0,0,0,.6);
+        }
+        video {
+            width:100%;
+            height:100%;
+            background:#000;
+        }
+        .status-panel {
+            background:#1e293b;
+            border-radius:18px;
+            padding:16px 18px 18px;
+            display:flex;
+            flex-direction:column;
+            gap:14px;
+            box-shadow:0 4px 16px rgba(0,0,0,.5);
+            min-height:250px;
+        }
+        .status-grid {
+            display:grid;
+            grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
+            gap:10px 14px;
+            font-size:.7rem;
+        }
+        .stat-box {
+            background:#162132;
+            padding:10px 12px 12px;
+            border-radius:12px;
+            display:flex;
+            flex-direction:column;
+            gap:4px;
+            min-height:70px;
+        }
+        .stat-box h4 {
+            margin:0;
+            font-size:.6rem;
+            text-transform:uppercase;
+            letter-spacing:.08em;
+            font-weight:600;
+            color:#94a3b8;
+        }
+        .value-lg { font-size:.85rem; font-weight:600; }
+        .door-controls {
+            display:flex;
+            flex-wrap:wrap;
+            gap:10px;
+            align-items:center;
+        }
+        .door-status {
+            font-size:.7rem;
+            padding:6px 10px 7px;
+            border-radius:999px;
+            background:#334155;
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            font-weight:600;
+            letter-spacing:.04em;
+        }
+        .door-status.open { background:#059669; }
+        .door-status.closed { background:#dc2626; }
+        .door-status.forced { background:#d97706; }
+        .panel-title {
+            margin:0 0 4px;
+            font-size:.75rem;
+            text-transform:uppercase;
+            letter-spacing:.08em;
+            font-weight:700;
+            color:#93a3b8;
+        }
+
+        /* Logs sidebar */
+        .logs-sidebar {
+            width:390px;
+            max-width:40%;
+            min-width:300px;
+            display:flex;
+            flex-direction:column;
+            gap:12px;
+            background:#1e293b;
+            border-radius:18px;
+            padding:14px 14px 18px;
+            box-shadow:0 4px 16px rgba(0,0,0,.55);
+            overflow:hidden;
+        }
+        .logs-header {
+            display:flex;
+            align-items:center;
+            gap:10px;
+            justify-content:space-between;
+        }
+        .logs-list {
+            flex:1;
+            overflow:auto;
+            display:flex;
+            flex-direction:column-reverse; /* newest top */
+            gap:6px;
+            font-size:.66rem;
+            line-height:1.25;
+            padding-right:4px;
+        }
+        .log-item {
+            background:#162132;
+            border:1px solid #243044;
+            padding:6px 8px 7px;
+            border-radius:10px;
+            display:flex;
+            flex-direction:column;
+            gap:3px;
+            position:relative;
+            animation:fadeIn .25s ease;
+        }
+        .log-head {
+            display:flex;
+            align-items:center;
+            gap:6px;
+            font-size:.55rem;
+            letter-spacing:.05em;
+        }
+        .badge {
+            background:#2563eb;
+            color:#fff;
+            padding:2px 6px 3px;
+            border-radius:999px;
+            font-weight:600;
+            font-size:.55rem;
+            letter-spacing:.05em;
+        }
+        .badge.warn { background:#d97706; }
+        .badge.error { background:#dc2626; }
+        .log-time { opacity:.75; font-family:ui-monospace,monospace; }
+        .log-msg { word-break:break-word; white-space:pre-wrap; }
+        .logs-empty {
+            font-size:.65rem;
+            color:#94a3b8;
+            text-align:center;
+            margin-top:26px;
+        }
+        .filter-row {
+            display:flex;
+            gap:6px;
+            flex-wrap:wrap;
+            align-items:center;
+        }
+        select {
+            font:inherit;
+            font-size:.65rem;
+            padding:6px 8px;
+            border-radius:8px;
+            border:1px solid #334155;
+            background:#0f172a;
+            color:#f1f5f9;
+        }
+        select:focus { outline:none; border-color:#3b82f6; }
+
+        .divider {
+            height:1px;
+            background:#243044;
+            margin:2px 0 6px;
+        }
+
+        .toast {
+            position:fixed;
+            bottom:20px;
+            left:50%;
+            transform:translateX(-50%);
+            background:#2563eb;
+            color:#fff;
+            padding:10px 16px;
+            border-radius:12px;
+            font-size:.68rem;
+            font-weight:500;
+            box-shadow:0 4px 16px rgba(0,0,0,.5);
+            display:none;
+            animation:fadeSlide .25s ease;
+            z-index:100;
+        }
+        .toast.error { background:#b91c1c; }
+        @keyframes fadeSlide {
+            from { opacity:0; transform:translate(-50%,6px); }
+            to { opacity:1; transform:translate(-50%,0); }
+        }
+        @keyframes fadeIn {
+            from { opacity:0; transform:translateY(4px); }
+            to { opacity:1; transform:translateY(0); }
+        }
+
+        @media (max-width:1180px) {
+            .logs-sidebar {
+                display:none;
+            }
+        }
+        @media (prefers-color-scheme: light) {
+            body { background:#f5f7fb; color:#0f172a; }
+            header { background:#1e293b; color:#fff; }
+            .status-panel, .logs-sidebar { background:#fff; color:#0f172a; }
+            .video-wrap { box-shadow:0 4px 16px rgba(0,0,0,.15); }
+            .stat-box { background:#f1f5f9; }
+            .log-item { background:#f1f5f9; border-color:#e2e8f0; }
+            select { background:#fff; color:#0f172a; border-color:#cbd5e1; }
+            button.outline { border-color:#cbd5e1; }
+            .door-status { background:#e2e8f0; color:#1e293b; }
+            .door-status.open { background:#059669; color:#fff; }
+            .door-status.closed { background:#dc2626; color:#fff; }
+            .door-status.forced { background:#d97706; color:#1e1e1e; }
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Система распознавания</h1>
+    <nav>
+        <button class="outline" onclick="location.href='/profile'">Профиль</button>
+        <button class="outline" onclick="location.href='/logs'">Логи</button>
+        <button class="outline" onclick="location.href='/settings'">Настройки</button>
+        <button class="danger" onclick="location.href='/logout'">Выйти</button>
+    </nav>
+</header>
+<main>
+    <div class="layout">
+        <div class="col-main">
+            <div class="video-wrap">
+                <video id="streamVideo" controls autoplay muted playsinline></video>
+            </div>
+
+            <section class="status-panel" aria-labelledby="statusTitle">
+                <h3 id="statusTitle" class="panel-title">Статус системы и управление дверью</h3>
+                <div class="door-controls">
+                    <div id="doorState" class="door-status">—</div>
+                    <button id="btnDoorOpen" class="secondary" title="Принудительно открыть">Открыть</button>
+                    <button id="btnDoorClose" class="secondary" title="Принудительно закрыть">Закрыть</button>
+                    <button id="btnDoorAuto" class="secondary" title="Автоматический режим (снять принуд.)">Авто</button>
+                    <button id="btnDoorRefresh" class="outline" title="Обновить статус двери">Обн.</button>
+                </div>
+                <div class="divider"></div>
+                <div class="status-grid" id="statusGrid">
+                    <div class="stat-box">
+                        <h4>Время</h4>
+                        <div class="value-lg" id="statTime">—</div>
+                    </div>
+                    <div class="stat-box">
+                        <h4>Дверь</h4>
+                        <div class="value-lg" id="statDoor">—</div>
+                    </div>
+                    <div class="stat-box" style="grid-column:span 2;">
+                        <h4>Распознано (последние)</h4>
+                        <div id="statRecognitions" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <aside class="logs-sidebar" aria-labelledby="logsTitle">
+            <div class="logs-header">
+                <h3 id="logsTitle" class="panel-title" style="margin:0;">Логи системы (Live)</h3>
+                <div class="filter-row">
+                    <select id="logFilter">
+                        <option value="all">Все</option>
+                        <option value="WARN">WARN</option>
+                        <option value="ERROR">ERROR</option>
+                        <option value="DOOR">DOOR</option>
+                        <option value="RECOGNIZE">RECOGNIZE</option>
+                        <option value="SETTINGS_CHANGE">SETTINGS_CHANGE</option>
+                    </select>
+                    <button id="btnClearLogs" class="outline" title="Очистить локально">Очистить</button>
+                </div>
+            </div>
+            <div id="logsList" class="logs-list"></div>
+            <div id="logsEmpty" class="logs-empty">Логи отсутствуют</div>
+        </aside>
+    </div>
+</main>
+
+<div id="toast" class="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="/main-page/script.js" defer></script>
+</body>
+</html>

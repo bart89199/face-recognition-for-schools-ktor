@@ -25,13 +25,9 @@ fun Application.configureRouting() {
         authenticate("session-auth") {
 
             get {
-                call.respondFile(getResource("react-app/index.html")!!)
+                call.respondFile(getResource("main-page/index.html")!!)
             }
-            singlePageApplication {
-                this.applicationRoute = "/assets"
-                this.useResources = true
-                react("react-app")
-            }
+            staticResources("/main-page", "main-page")
 
             setPermissions(UserPermissions(admin = true)) {
                 staticResources("/admin", "admin")

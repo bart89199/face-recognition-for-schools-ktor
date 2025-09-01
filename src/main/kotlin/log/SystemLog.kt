@@ -8,6 +8,7 @@ import io.ktor.server.auth.authenticate
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.util.reflect.typeInfo
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.Transaction
@@ -51,7 +52,7 @@ data class SystemLog(
 object SystemLogTable : LogTable<SystemLogType>(SystemLogType::class)
 
 object SystemLogService :
-    LogService<SystemLogType, SystemLog, SystemLogTable>(SystemLogTable, ::enumValueOf) {
+    LogService<SystemLogType, SystemLog, SystemLogTable>(SystemLogTable, ::enumValueOf, SystemLog.serializer()) {
     override fun Query.toModel(): List<SystemLog> = map {
         SystemLog(
             type = it[SystemLogTable.type],
@@ -76,16 +77,22 @@ object SystemLogService :
             it[table.time] = time
             it[table.message] = message
         }
-        addLog(SystemLog(type, time, message))
     }
 
-    suspend fun log(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit =
+    suspend fun log(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit {
         suspendTransaction {
             addLog(type, message, time)
         }
+        addLog(SystemLog(type, time, message))
+    }
 
-    fun logB(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit = transaction {
-        addLog(type, message, time)
+    fun logB(type: SystemLogType, message: String, time: Long = System.currentTimeMillis()): Unit {
+        transaction {
+            addLog(type, message, time)
+        }
+        runBlocking {
+            addLog(SystemLog(type, time, message))
+        }
     }
 
 }
