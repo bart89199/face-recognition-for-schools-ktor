@@ -27,7 +27,7 @@ private val oauthLoginParams = ConcurrentHashMap<String, LoginParams>()
 fun AuthenticationConfig.configureGoogleOauthPlugin(application: Application) {
 
     oauth("oauth-google") {
-        urlProvider = { "http://localhost:8080/callback" }
+        urlProvider = { "http://face-recognition.online/callback" }
         providerLookup = {
             OAuthServerSettings.OAuth2ServerSettings(
                 name = "google",

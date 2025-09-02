@@ -68,7 +68,8 @@ object PythonConnection {
                         post {
                             val newStatus = call.receiveOrRespond<DoorForceStatus>() ?: return@post
                             val session = call.getSession() ?: return@post
-                            session.log(AdminLogType.FORCE_DOOR, "changed $forceDoor to ${newStatus.status}")
+                            session.log(AdminLogType.FORCE_DOOR, "changed ${forceDoor.toDoorStatus()} to ${newStatus.status.toDoorStatus()}")
+                            sysLog(SystemLogType.DOOR, "door force changed  ${forceDoor.toDoorStatus()} to ${newStatus.status.toDoorStatus()}")
                             forceDoor = newStatus.status
                             call.respond(HttpStatusCode.OK)
                         }
@@ -83,6 +84,12 @@ object PythonConnection {
 data class DoorForceStatus(
     val status: Boolean?
 )
+
+fun Boolean?.toDoorStatus() = when(this) {
+    true -> "open"
+    false -> "closed"
+    null -> "auto"
+}
 
 @Serializable
 data class RawSystemStatus(
