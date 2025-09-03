@@ -1,20 +1,11 @@
 (function() {
-    // ==== TYPES ====
-    const SYSTEM_TYPES = [
-        "SYSTEM_START","SYSTEM_STOP","DOOR","RECOGNIZE","SETTINGS_CHANGE",
-        "BACKUP_CREATE","BACKUP_DELETE","BACKUP_UPLOAD","FRAME_ADD","FRAME_REMOVE",
-        "HUMAN_ADD","HUMAN_REMOVE","FORM_CREATE","FORM_DELETE","FORM_UPLOAD",
-        "FORM_ANSWER_ADD","FORM_ANSWER_REMOVE","WARN","ERROR"
-    ];
-    const ADMIN_TYPES = [
-        "USER_LOGIN","USER_LOGOUT","USER_CREATED","USER_UPDATE","USER_DELETE",
-        "SESSION_DELETE","DOOR","LOGS_DOWNLOAD","RECORD_DOWNLOAD","SETTINGS_CHANGE",
-        "BACKUP_CREATE","BACKUP_DELETE","BACKUP_UPLOAD","FORM_CREATE","FORM_UPLOAD",
-        "FORM_DELETE","FRAME_ADD","FRAME_REMOVE","HUMAN_ADD","HUMAN_REMOVE"
-    ];
-
+    // ==== ENDPOINTS ====
     const systemEndpoint = "/api/logs/system";
     const adminEndpoint  = "/api/logs/admin";
+
+    // Dynamic types (will be loaded from /types endpoints)
+    let SYSTEM_TYPES = [];
+    let ADMIN_TYPES = [];
 
     // ==== DOM ====
     // System
@@ -66,13 +57,19 @@
     let systemLogsData = [];
     let adminLogsData = [];
     let systemSortAsc = false; // time: newest -> oldest default
-    // admin sorting state {key: time|type|session, asc:boolean}
     let adminSort = { key: "time", asc: false };
-
-    let systemLastMode = "range"; // "range" | "current"
+    let systemLastMode = "range";
     let adminLastMode = "range";
-
     let userProfile = null;
+    let systemTypesLoaded = false;
+    let adminTypesLoaded = false;
+
+    // WebSocket state
+    let sysWs = null;
+    let admWs = null;
+    let sysWsReconnect = 0;
+    let admWsReconnect = 0;
+    const MAX_LOGS_BUFFER = 2000;
 
     // ==== UTIL ====
     function showError(msg) {
@@ -89,14 +86,24 @@
     }
     function clearMessages() { errBox.classList.remove("show"); okBox.classList.remove("show"); }
 
-    function buildTypesList(container, values) {
+    function buildTypesList(container, values, preselectAll = true) {
         container.innerHTML = "";
+        if (!values.length) {
+            const div = document.createElement("div");
+            div.style.fontSize=".65rem";
+            div.style.opacity=".7";
+            div.textContent = "Типы не найдены";
+            container.appendChild(div);
+            return;
+        }
         values.forEach(v => {
             const row = document.createElement("label");
             row.className = "type-row";
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.value = v;
+            cb.checked = preselectAll;
+            row.classList.toggle("checked", cb.checked);
             cb.addEventListener("change", () => row.classList.toggle("checked", cb.checked));
             row.appendChild(cb);
             row.appendChild(document.createTextNode(v));
@@ -188,7 +195,39 @@
         } catch {}
     }
 
-    // ==== FETCH ====
+    // ==== TYPES FETCH ====
+    async function fetchTypes(endpoint) {
+        try {
+            const resp = await fetch(`${endpoint}/types`, { credentials:"include" });
+            if (resp.redirected && resp.url.includes("/login")) { window.location = resp.url; return []; }
+            if (!resp.ok) return [];
+            const data = await resp.json().catch(()=>[]);
+            return Array.isArray(data) ? data : [];
+        } catch {
+            return [];
+        }
+    }
+
+    async function loadSystemTypesIfNeeded() {
+        if (systemTypesLoaded) return;
+        sysTypesList.innerHTML = '<div style="font-size:.65rem;opacity:.7;">Загрузка...</div>';
+        const types = await fetchTypes(systemEndpoint);
+        if (types.length) SYSTEM_TYPES = types;
+        systemTypesLoaded = true;
+        buildTypesList(sysTypesList, SYSTEM_TYPES);
+    }
+
+    async function loadAdminTypesIfNeeded() {
+        if (adminTypesLoaded) return;
+        if (!userProfile || !(userProfile.root || (userProfile.permissions && userProfile.permissions.admin))) return;
+        admTypesList.innerHTML = '<div style="font-size:.65rem;opacity:.7;">Загрузка...</div>';
+        const types = await fetchTypes(adminEndpoint);
+        if (types.length) ADMIN_TYPES = types;
+        adminTypesLoaded = true;
+        buildTypesList(admTypesList, ADMIN_TYPES);
+    }
+
+    // ==== FETCH LOGS (HTTP) ====
     async function fetchLogs(endpoint, mode, startMs, endMs, typesArr, btn) {
         clearMessages();
         setLoading(btn, true);
@@ -283,7 +322,6 @@
         }
         for (const log of data) {
             const tr = document.createElement("tr");
-            // Order: time, type, sessionId, message
             tr.innerHTML = `
                 <td class="nowrap mono">${formatDate(log.time)}</td>
                 <td><span class="log-type-badge">${log.type}</span></td>
@@ -309,25 +347,147 @@
         });
     }
 
-    // ==== LOAD WRAPPERS ====
+    // ==== WEBSOCKET HELPERS ====
+    function makeWsUrl(path) {
+        const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+        return `${proto}//${window.location.host}${path}`;
+    }
+
+    function shouldAcceptSystemLog(log) {
+        // Accept only when in "current" mode
+        if (systemLastMode !== "current") return false;
+        const selected = getCheckedTypes(sysTypesList);
+        if (!selected.length) return true;
+        return selected.includes(log.type);
+    }
+
+    function shouldAcceptAdminLog(log) {
+        if (adminLastMode !== "current") return false;
+        const selected = getCheckedTypes(admTypesList);
+        if (!selected.length) return true;
+        return selected.includes(log.type);
+    }
+
+    function trimBuffer(arr) {
+        if (arr.length > MAX_LOGS_BUFFER) {
+            arr.splice(0, arr.length - MAX_LOGS_BUFFER);
+        }
+    }
+
+    function connectSystemWs() {
+        closeSystemWs();
+        sysWsReconnect++;
+        const url = makeWsUrl("/api/logs/system/ws");
+        sysWs = new WebSocket(url);
+        sysWs.onopen = () => { sysWsReconnect = 0; };
+        sysWs.onmessage = ev => {
+            try {
+                const log = JSON.parse(ev.data);
+                if (log && log.type && typeof log.time === "number") {
+                    if (shouldAcceptSystemLog(log)) {
+                        systemLogsData.push(log);
+                        trimBuffer(systemLogsData);
+                        renderSystemLogs();
+                    }
+                }
+            } catch {}
+        };
+        sysWs.onclose = () => {
+            // Reconnect only if still on current mode
+            if (systemLastMode === "current") {
+                const delay = Math.min(10000, 300 * sysWsReconnect);
+                setTimeout(connectSystemWs, delay);
+            }
+        };
+        sysWs.onerror = () => {
+            try { sysWs.close(); } catch {}
+        };
+    }
+
+    function closeSystemWs() {
+        if (sysWs) {
+            try { sysWs.close(); } catch {}
+            sysWs = null;
+        }
+    }
+
+    function connectAdminWs() {
+        closeAdminWs();
+        if (!userProfile || !(userProfile.root || (userProfile.permissions && userProfile.permissions.admin))) return;
+        admWsReconnect++;
+        const url = makeWsUrl("/api/logs/admin/ws");
+        admWs = new WebSocket(url);
+        admWs.onopen = () => { admWsReconnect = 0; };
+        admWs.onmessage = ev => {
+            try {
+                const log = JSON.parse(ev.data);
+                if (log && log.type && typeof log.time === "number") {
+                    if (shouldAcceptAdminLog(log)) {
+                        adminLogsData.push(log);
+                        trimBuffer(adminLogsData);
+                        renderAdminLogs();
+                    }
+                }
+            } catch {}
+        };
+        admWs.onclose = () => {
+            if (adminLastMode === "current") {
+                const delay = Math.min(10000, 300 * admWsReconnect);
+                setTimeout(connectAdminWs, delay);
+            }
+        };
+        admWs.onerror = () => {
+            try { admWs.close(); } catch {}
+        };
+    }
+
+    function closeAdminWs() {
+        if (admWs) {
+            try { admWs.close(); } catch {}
+            admWs = null;
+        }
+    }
+
+    function refreshSystemWsBinding() {
+        // If we are in current mode ensure WS connected; else close
+        if (systemLastMode === "current") {
+            if (!sysWs || sysWs.readyState === 3) connectSystemWs();
+        } else {
+            closeSystemWs();
+        }
+    }
+
+    function refreshAdminWsBinding() {
+        if (adminLastMode === "current") {
+            if (!admWs || admWs.readyState === 3) connectAdminWs();
+        } else {
+            closeAdminWs();
+        }
+    }
+
+    // ==== LOAD (wrapper) ====
     async function loadSystem(mode = "range") {
+        await loadSystemTypesIfNeeded();
         const startMs = mode === "range" ? dtLocalToEpochMs(sysStart) : null;
         const endMs = mode === "range" ? dtLocalToEpochMs(sysEnd) : null;
         const types = getCheckedTypes(sysTypesList);
         systemLastMode = mode;
         systemLogsData = await fetchLogs(systemEndpoint, mode, startMs, endMs, types, mode === "current" ? sysCurrentBtn : sysLoadBtn);
-        sysFetchInfo.textContent = mode === "current" ? "Показаны текущие логи" : "";
+        sysFetchInfo.textContent = mode === "current" ? "Показаны текущие логи (live)" : "";
         renderSystemLogs();
+        refreshSystemWsBinding();
     }
 
     async function loadAdmin(mode = "range") {
+        await loadAdminTypesIfNeeded();
         const startMs = mode === "range" ? dtLocalToEpochMs(admStart) : null;
         const endMs = mode === "range" ? dtLocalToEpochMs(admEnd) : null;
         const types = getCheckedTypes(admTypesList);
         adminLastMode = mode;
         adminLogsData = await fetchLogs(adminEndpoint, mode, startMs, endMs, types, mode === "current" ? admCurrentBtn : admLoadBtn);
-        admFetchInfo.textContent = mode === "current" ? "Показаны текущие логи" : "";
+        admFetchInfo.textContent = mode === "current" ? "Показаны текущие логи (live)" : "";
         renderAdminLogs();
+        refreshAdminWsBinding();
     }
 
     // ==== EVENTS: System ====
@@ -346,9 +506,23 @@
         sysFetchInfo.textContent = "";
         renderSystemLogs();
         showOk("Очищено");
+        refreshSystemWsBinding();
     });
-    sysSelectAllTypes.addEventListener("click", () => setAllTypes(sysTypesList, true));
-    sysClearTypes.addEventListener("click", () => setAllTypes(sysTypesList, false));
+    sysSelectAllTypes.addEventListener("click", () => {
+        setAllTypes(sysTypesList, true);
+        if (systemLastMode === "current") {
+            // Перефильтровать буфер
+            systemLogsData = systemLogsData.filter(l => shouldAcceptSystemLog(l) || true); // noop
+            renderSystemLogs();
+        }
+    });
+    sysClearTypes.addEventListener("click", () => {
+        setAllTypes(sysTypesList, false);
+        if (systemLastMode === "current") {
+            // При отсутствии выбранных типов показываем все текущие
+            renderSystemLogs();
+        }
+    });
     sysTimeHeader.addEventListener("click", () => {
         systemSortAsc = !systemSortAsc;
         renderSystemLogs();
@@ -373,16 +547,23 @@
         admFetchInfo.textContent = "";
         renderAdminLogs();
         showOk("Очищено");
+        refreshAdminWsBinding();
     });
-    admSelectAllTypes.addEventListener("click", () => setAllTypes(admTypesList, true));
-    admClearTypes.addEventListener("click", () => setAllTypes(admTypesList, false));
+    admSelectAllTypes.addEventListener("click", () => {
+        setAllTypes(admTypesList, true);
+        if (adminLastMode === "current") renderAdminLogs();
+    });
+    admClearTypes.addEventListener("click", () => {
+        setAllTypes(admTypesList, false);
+        if (adminLastMode === "current") renderAdminLogs();
+    });
 
     function toggleAdminSort(key) {
         if (adminSort.key === key) {
             adminSort.asc = !adminSort.asc;
         } else {
             adminSort.key = key;
-            adminSort.asc = key !== "time"; // для time по умолчанию desc (false), для других asc
+            adminSort.asc = key !== "time";
         }
         renderAdminLogs();
     }
@@ -410,8 +591,14 @@
         systemTab.classList.toggle("hidden", tab !== "systemTab");
         adminTab.classList.toggle("hidden", tab !== "adminTab");
         clearMessages();
-        if (tab === "systemTab" && systemLogsData.length === 0) await loadSystem("current");
-        if (tab === "adminTab" && adminLogsData.length === 0 && !adminTabBtn.classList.contains("hidden")) await loadAdmin("current");
+        if (tab === "systemTab" && systemLogsData.length === 0) {
+            await loadSystemTypesIfNeeded();
+            await loadSystem("current");
+        }
+        if (tab === "adminTab" && !adminTabBtn.classList.contains("hidden") && adminLogsData.length === 0) {
+            await loadAdminTypesIfNeeded();
+            await loadAdmin("current");
+        }
     });
 
     // Date inputs Enter -> refresh
@@ -419,12 +606,24 @@
     [admStart, admEnd].forEach(inp => inp.addEventListener("keydown", e => { if (e.key === "Enter") admLoadBtn.click(); }));
 
     // ==== INIT ====
-    function init() {
-        buildTypesList(sysTypesList, SYSTEM_TYPES);
-        buildTypesList(admTypesList, ADMIN_TYPES);
+    async function init() {
         applyDefaultInterval();
-        loadProfile().then(() => {
-            loadSystem("current"); // default
+
+        // Placeholders
+        sysTypesList.innerHTML = '<div style="font-size:.65rem;opacity:.7;">Загрузка...</div>';
+        admTypesList.innerHTML = '<div style="font-size:.65rem;opacity:.7;">—</div>';
+
+        await loadProfile();
+        await loadSystemTypesIfNeeded();
+        await loadSystem("current");
+
+        if (userProfile && (userProfile.root || (userProfile.permissions && userProfile.permissions.admin))) {
+            loadAdminTypesIfNeeded();
+        }
+
+        window.addEventListener("beforeunload", () => {
+            closeSystemWs();
+            closeAdminWs();
         });
     }
     init();

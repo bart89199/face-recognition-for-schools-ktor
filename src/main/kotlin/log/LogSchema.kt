@@ -86,7 +86,7 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
                 call.respond(logs)
                 return@get
             }
-            val fileName = logsFileName(this) ?: return@get
+            val fileName = (logsFileName(this) ?: return@get) + ".txt"
             session.log(AdminLogType.LOGS_DOWNLOAD, "Download $fileName")
             respondLogsFile(logs, fileName)
         }
@@ -103,7 +103,7 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
         }
 
         get("types") {
-            call.respond(enumEntries<T>())
+            call.respond(enumEntries<T>().map { it.name } )
         }
 
         webSocket("/ws") {
@@ -172,17 +172,17 @@ abstract class LogService<T : Enum<T>, L : LogModel<T>, LT : LogTable<T>>(
         val type = fetchLogType<T>(routingContext) ?: return null
         return "logs-[${start?.toDateString() ?: "start"} - ${end?.toDateString() ?: "end"}] [${
             if (type.isEmpty()) "all" else type.joinToString(",")
-        }].txt"
+        }]"
     }
 
 
     protected abstract fun Query.toModel(): List<L>
 
-    private fun time(start: Long?, end: Long?): Op<Boolean> =
+    protected fun time(start: Long?, end: Long?): Op<Boolean> =
         (if (start == null) Op.TRUE else table.time greaterEq start) and
                 (if (end == null) Op.TRUE else table.time lessEq end)
 
-    private fun type(type: List<T>): Op<Boolean> =
+    protected fun type(type: List<T>): Op<Boolean> =
         if (type.isEmpty()) Op.TRUE else type.fold<T, Op<Boolean>>(Op.FALSE) { base, type ->
             base or (table.type eq type)
         }

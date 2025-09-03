@@ -1,19 +1,26 @@
 package com.batr.log
 
+import com.batr.auth.getSession
 import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
 import com.batr.database.Database.suspendTransaction
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
 import io.ktor.server.auth.authenticate
+import io.ktor.server.response.respond
+import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
-import io.ktor.util.reflect.typeInfo
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.Transaction
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
+import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import kotlin.text.toBoolean
 
 @Serializable
 enum class AdminLogType {
@@ -74,6 +81,26 @@ object AdminLogService :
             authenticate("session-auth") {
                 setPermissions(UserPermissions(admin = true)) {
                     configureLogManagers(this)
+                    get("byId/{id}") {
+                        val sessionId = call.parameters["id"]?.toIntOrNull()
+                        if (sessionId == null) {
+                            call.respond(HttpStatusCode.BadRequest, "invalid id")
+                            return@get
+                        }
+                        val session = call.getSession() ?: return@get
+                        val download = call.request.queryParameters["download"].toBoolean()
+                        val start = call.queryParameters["start"]?.toLong()
+                        val end = call.queryParameters["end"]?.toLong()
+                        val type = this@AdminLogService.fetchLogType<AdminLogType>(this) ?: return@get
+                        val logs = getLogs(type, start, end, sessionId).sortedByDescending { it.time }
+                        if (!download) {
+                            call.respond(logs)
+                            return@get
+                        }
+                        val fileName = (logsFileName(this) ?: return@get) + " [session id $sessionId].txt"
+                        session.log(AdminLogType.LOGS_DOWNLOAD, "Download $fileName")
+                        respondLogsFile(logs, fileName)
+                    }
                 }
             }
         }
@@ -92,6 +119,16 @@ object AdminLogService :
             it[table.sessionId] = sessionId
         }
     }
+
+    suspend fun getLogs(
+        type: List<AdminLogType> = emptyList(),
+        start: Long? = null,
+        end: Long? = null,
+        sessionId: Int
+    ): List<AdminLog> =
+        suspendTransaction {
+            table.selectAll().where(type(type) and time(start, end) and (AdminLogTable.sessionId eq sessionId)).toModel()
+        }
 
     suspend fun log(
         type: AdminLogType,
