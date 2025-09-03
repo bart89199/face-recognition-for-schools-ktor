@@ -15,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
@@ -82,8 +83,8 @@ object AdminLogService :
                 setPermissions(UserPermissions(admin = true)) {
                     configureLogManagers(this)
                     get("byId/{id}") {
-                        val sessionId = call.parameters["id"]?.toIntOrNull()
-                        if (sessionId == null) {
+                        val sessionIds = call.parameters["id"]?.split(",")?.map { it.toIntOrNull() } ?: emptyList()
+                        if (sessionIds.isEmpty() || sessionIds.any { it == null }) {
                             call.respond(HttpStatusCode.BadRequest, "invalid id")
                             return@get
                         }
@@ -92,12 +93,12 @@ object AdminLogService :
                         val start = call.queryParameters["start"]?.toLong()
                         val end = call.queryParameters["end"]?.toLong()
                         val type = this@AdminLogService.fetchLogType<AdminLogType>(this) ?: return@get
-                        val logs = getLogs(type, start, end, sessionId).sortedByDescending { it.time }
+                        val logs = getLogs(type, start, end, sessionIds.map { it!! }).sortedByDescending { it.time }
                         if (!download) {
                             call.respond(logs)
                             return@get
                         }
-                        val fileName = (logsFileName(this) ?: return@get) + " [session id $sessionId].txt"
+                        val fileName = (logsFileName(this) ?: return@get) + " [session ids $sessionIds].txt"
                         session.log(AdminLogType.LOGS_DOWNLOAD, "Download $fileName")
                         respondLogsFile(logs, fileName)
                     }
@@ -124,10 +125,11 @@ object AdminLogService :
         type: List<AdminLogType> = emptyList(),
         start: Long? = null,
         end: Long? = null,
-        sessionId: Int
+        sessionId: List<Int>
     ): List<AdminLog> =
         suspendTransaction {
-            table.selectAll().where(type(type) and time(start, end) and (AdminLogTable.sessionId eq sessionId)).toModel()
+            table.selectAll().where(type(type) and time(start, end) and (AdminLogTable.sessionId inList sessionId))
+                .toModel()
         }
 
     suspend fun log(
