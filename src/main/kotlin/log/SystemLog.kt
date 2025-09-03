@@ -34,6 +34,7 @@ enum class SystemLogType {
     FORM_UPLOAD,
     FORM_ANSWER_ADD,
     FORM_ANSWER_REMOVE,
+    INFO,
     WARN,
     ERROR
 }
@@ -52,7 +53,7 @@ data class SystemLog(
 object SystemLogTable : LogTable<SystemLogType>(SystemLogType::class)
 
 object SystemLogService :
-    LogService<SystemLogType, SystemLog, SystemLogTable>(SystemLogTable, ::enumValueOf, SystemLog.serializer()) {
+    LogService<SystemLogType, SystemLog, SystemLogTable>(SystemLogTable) {
     override fun Query.toModel(): List<SystemLog> = map {
         SystemLog(
             type = it[SystemLogTable.type],
@@ -65,7 +66,7 @@ object SystemLogService :
         route("api/logs/system") {
             authenticate("session-auth") {
                 setPermissions(UserPermissions(logs = true)) {
-                    configureLogManagers(typeInfo<List<SystemLog>>())
+                    configureLogManagers(this)
                 }
             }
         }

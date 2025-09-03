@@ -1,6 +1,8 @@
 package com.batr
 
 import com.batr.auth.configureAuth
+import com.batr.auth.user.RawUser
+import com.batr.auth.user.UserService
 import com.batr.database.Database.configureDatabase
 import com.batr.log.AdminLogService
 import com.batr.log.SystemLogService
@@ -12,6 +14,7 @@ import io.ktor.client.*
 import io.ktor.client.engine.cio.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
+import kotlinx.coroutines.runBlocking
 
 const val HOME_PATH = "/"
 const val LOGIN_PATH = "/login"

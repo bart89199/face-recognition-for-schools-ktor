@@ -37,6 +37,9 @@ enum class AdminLogType {
     FRAME_REMOVE,
     HUMAN_ADD,
     HUMAN_REMOVE,
+    INFO,
+    WARN,
+    ERROR
 }
 
 @Serializable
@@ -56,7 +59,7 @@ object AdminLogTable : LogTable<AdminLogType>(AdminLogType::class) {
 }
 
 object AdminLogService :
-    LogService<AdminLogType, AdminLog, AdminLogTable>(AdminLogTable, ::enumValueOf, AdminLog.serializer()) {
+    LogService<AdminLogType, AdminLog, AdminLogTable>(AdminLogTable) {
     override fun Query.toModel(): List<AdminLog> = map {
         AdminLog(
             type = it[AdminLogTable.type],
@@ -70,7 +73,7 @@ object AdminLogService :
         route("api/logs/admin") {
             authenticate("session-auth") {
                 setPermissions(UserPermissions(admin = true)) {
-                    configureLogManagers(typeInfo<List<AdminLog>>())
+                    configureLogManagers(this)
                 }
             }
         }

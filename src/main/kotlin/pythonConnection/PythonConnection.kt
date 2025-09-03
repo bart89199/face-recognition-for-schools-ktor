@@ -17,6 +17,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 object PythonConnection {
@@ -54,8 +55,8 @@ object PythonConnection {
                 route("api/py") {
                     post("/status") {
                         val newStatus = call.receive<RawSystemStatus>()
-                        updateStatus(SystemStatus(System.currentTimeMillis(), newStatus.door, newStatus.recognitions))
-                        call.respond(HttpStatusCode.OK, DoorForceStatus(forceDoor ?: newStatus.door))
+                        updateStatus(SystemStatus(newStatus.status, System.currentTimeMillis(), newStatus.door, newStatus.recognitions))
+                        call.respond(HttpStatusCode.OK)
                     }
                 }
             }
@@ -93,12 +94,14 @@ fun Boolean?.toDoorStatus() = when(this) {
 
 @Serializable
 data class RawSystemStatus(
+    @SerialName("system_status") val status: String,
     val door: Boolean,
     val recognitions: List<String>
 )
 
 @Serializable
 data class SystemStatus(
+    val status: String,
     val time: Long,
     val door: Boolean,
     val recognitions: List<String>
