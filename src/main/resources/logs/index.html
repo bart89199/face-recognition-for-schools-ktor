@@ -43,20 +43,13 @@
             letter-spacing:.07em; color:#475569; display:flex; flex-direction:column; gap:6px;
         }
 
-        input[type=datetime-local] {
+        input[type=datetime-local], input[type=text] {
             padding:8px 10px; border:1px solid #cbd5e1; border-radius:10px;
             font:inherit; background:#fff; color:#0f172a; min-width:195px; line-height:1.1;
         }
-        input[type=datetime-local]:focus {
+        input[type=datetime-local]:focus, input[type=text]:focus {
             outline:none; border-color:#3b82f6;
             box-shadow:0 0 0 2px rgba(59,130,246,.35);
-        }
-        input[type=datetime-local]::-webkit-calendar-picker-indicator {
-            opacity:.85; cursor:pointer; filter:invert(0);
-            transition:filter .15s;
-        }
-        input[type=datetime-local]:hover::-webkit-calendar-picker-indicator {
-            filter:brightness(.7);
         }
 
         .types-box { display:flex; flex-direction:column; gap:6px; min-width:240px; }
@@ -142,7 +135,7 @@
             .types-list { background:#1e293b; border-color:#334155; }
             .type-row:hover { background:#334155; }
             .type-row.checked { background:#2563eb; }
-            input[type=datetime-local] {
+            input[type=datetime-local], input[type=text] {
                 background:#1e293b; border-color:#334155; color:#f1f5f9;
             }
             input[type=datetime-local]::-webkit-calendar-picker-indicator {
@@ -247,6 +240,11 @@
                     <button type="button" class="outline btn-small" id="admSelectAllTypes">Все</button>
                     <button type="button" class="outline btn-small" id="admClearTypes">Снять</button>
                 </div>
+            </div>
+            <!-- новый фильтр по session id -->
+            <div>
+                <label class="lbl" for="admSessionFilter">Session ID(ы)</label>
+                <input type="text" id="admSessionFilter" placeholder="Напр: 12 или 12,15,20">
             </div>
             <div style="display:flex; flex-direction:column; gap:8px; min-width:150px;">
                 <button type="button" id="admLoadBtn">Обновить</button>

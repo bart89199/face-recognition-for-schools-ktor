@@ -64,12 +64,18 @@
     let systemTypesLoaded = false;
     let adminTypesLoaded = false;
 
-    // WebSocket state
+    // WebSocket state (теперь поддерживаем live и для диапазона)
     let sysWs = null;
     let admWs = null;
     let sysWsReconnect = 0;
     let admWsReconnect = 0;
     const MAX_LOGS_BUFFER = 2000;
+
+    // Границы диапазона (используются при фильтрации входящих WS событий в режиме range)
+    let systemRangeStartMs = null;
+    let systemRangeEndMs = null;
+    let adminRangeStartMs = null;
+    let adminRangeEndMs = null;
 
     // ==== UTIL ====
     function showError(msg) {
@@ -102,7 +108,7 @@
             const cb = document.createElement("input");
             cb.type = "checkbox";
             cb.value = v;
-            cb.checked = preselectAll;
+            cb.checked = preselectAll; // default select all
             row.classList.toggle("checked", cb.checked);
             cb.addEventListener("change", () => row.classList.toggle("checked", cb.checked));
             row.appendChild(cb);
@@ -353,19 +359,29 @@
         return `${proto}//${window.location.host}${path}`;
     }
 
+    function withinRange(time, start, end) {
+        if (start != null && time < start) return false;
+        if (end != null && time > end) return false;
+        return true;
+    }
+
     function shouldAcceptSystemLog(log) {
-        // Accept only when in "current" mode
-        if (systemLastMode !== "current") return false;
-        const selected = getCheckedTypes(sysTypesList);
-        if (!selected.length) return true;
-        return selected.includes(log.type);
+        const selectedTypes = getCheckedTypes(sysTypesList);
+        if (selectedTypes.length && !selectedTypes.includes(log.type)) return false;
+        if (systemLastMode === "range") {
+            return withinRange(log.time, systemRangeStartMs, systemRangeEndMs);
+        }
+        // current mode – всегда берём (тип уже проверили)
+        return true;
     }
 
     function shouldAcceptAdminLog(log) {
-        if (adminLastMode !== "current") return false;
-        const selected = getCheckedTypes(admTypesList);
-        if (!selected.length) return true;
-        return selected.includes(log.type);
+        const selectedTypes = getCheckedTypes(admTypesList);
+        if (selectedTypes.length && !selectedTypes.includes(log.type)) return false;
+        if (adminLastMode === "range") {
+            return withinRange(log.time, adminRangeStartMs, adminRangeEndMs);
+        }
+        return true;
     }
 
     function trimBuffer(arr) {
@@ -375,7 +391,7 @@
     }
 
     function connectSystemWs() {
-        closeSystemWs();
+        if (sysWs && (sysWs.readyState === 0 || sysWs.readyState === 1)) return;
         sysWsReconnect++;
         const url = makeWsUrl("/api/logs/system/ws");
         sysWs = new WebSocket(url);
@@ -383,7 +399,7 @@
         sysWs.onmessage = ev => {
             try {
                 const log = JSON.parse(ev.data);
-                if (log && log.type && typeof log.time === "number") {
+                if (log && typeof log.time === "number" && log.type) {
                     if (shouldAcceptSystemLog(log)) {
                         systemLogsData.push(log);
                         trimBuffer(systemLogsData);
@@ -393,27 +409,17 @@
             } catch {}
         };
         sysWs.onclose = () => {
-            // Reconnect only if still on current mode
-            if (systemLastMode === "current") {
-                const delay = Math.min(10000, 300 * sysWsReconnect);
-                setTimeout(connectSystemWs, delay);
-            }
+            const delay = Math.min(10000, 300 * sysWsReconnect);
+            setTimeout(connectSystemWs, delay);
         };
         sysWs.onerror = () => {
             try { sysWs.close(); } catch {}
         };
     }
 
-    function closeSystemWs() {
-        if (sysWs) {
-            try { sysWs.close(); } catch {}
-            sysWs = null;
-        }
-    }
-
     function connectAdminWs() {
-        closeAdminWs();
         if (!userProfile || !(userProfile.root || (userProfile.permissions && userProfile.permissions.admin))) return;
+        if (admWs && (admWs.readyState === 0 || admWs.readyState === 1)) return;
         admWsReconnect++;
         const url = makeWsUrl("/api/logs/admin/ws");
         admWs = new WebSocket(url);
@@ -421,7 +427,7 @@
         admWs.onmessage = ev => {
             try {
                 const log = JSON.parse(ev.data);
-                if (log && log.type && typeof log.time === "number") {
+                if (log && typeof log.time === "number" && log.type) {
                     if (shouldAcceptAdminLog(log)) {
                         adminLogsData.push(log);
                         trimBuffer(adminLogsData);
@@ -431,51 +437,33 @@
             } catch {}
         };
         admWs.onclose = () => {
-            if (adminLastMode === "current") {
-                const delay = Math.min(10000, 300 * admWsReconnect);
-                setTimeout(connectAdminWs, delay);
-            }
+            const delay = Math.min(10000, 300 * admWsReconnect);
+            setTimeout(connectAdminWs, delay);
         };
         admWs.onerror = () => {
             try { admWs.close(); } catch {}
         };
     }
 
-    function closeAdminWs() {
-        if (admWs) {
-            try { admWs.close(); } catch {}
-            admWs = null;
-        }
-    }
-
-    function refreshSystemWsBinding() {
-        // If we are in current mode ensure WS connected; else close
-        if (systemLastMode === "current") {
-            if (!sysWs || sysWs.readyState === 3) connectSystemWs();
-        } else {
-            closeSystemWs();
-        }
-    }
-
-    function refreshAdminWsBinding() {
-        if (adminLastMode === "current") {
-            if (!admWs || admWs.readyState === 3) connectAdminWs();
-        } else {
-            closeAdminWs();
-        }
-    }
-
-    // ==== LOAD (wrapper) ====
+    // ==== LOAD WRAPPERS ====
     async function loadSystem(mode = "range") {
         await loadSystemTypesIfNeeded();
         const startMs = mode === "range" ? dtLocalToEpochMs(sysStart) : null;
         const endMs = mode === "range" ? dtLocalToEpochMs(sysEnd) : null;
         const types = getCheckedTypes(sysTypesList);
         systemLastMode = mode;
+        if (mode === "range") {
+            systemRangeStartMs = startMs;
+            systemRangeEndMs = endMs;
+        } else {
+            systemRangeStartMs = null;
+            systemRangeEndMs = null;
+        }
         systemLogsData = await fetchLogs(systemEndpoint, mode, startMs, endMs, types, mode === "current" ? sysCurrentBtn : sysLoadBtn);
         sysFetchInfo.textContent = mode === "current" ? "Показаны текущие логи (live)" : "";
         renderSystemLogs();
-        refreshSystemWsBinding();
+        // Всегда поддерживаем подключение (для live пополнения диапазона тоже)
+        connectSystemWs();
     }
 
     async function loadAdmin(mode = "range") {
@@ -484,10 +472,17 @@
         const endMs = mode === "range" ? dtLocalToEpochMs(admEnd) : null;
         const types = getCheckedTypes(admTypesList);
         adminLastMode = mode;
+        if (mode === "range") {
+            adminRangeStartMs = startMs;
+            adminRangeEndMs = endMs;
+        } else {
+            adminRangeStartMs = null;
+            adminRangeEndMs = null;
+        }
         adminLogsData = await fetchLogs(adminEndpoint, mode, startMs, endMs, types, mode === "current" ? admCurrentBtn : admLoadBtn);
         admFetchInfo.textContent = mode === "current" ? "Показаны текущие логи (live)" : "";
         renderAdminLogs();
-        refreshAdminWsBinding();
+        connectAdminWs();
     }
 
     // ==== EVENTS: System ====
@@ -502,26 +497,21 @@
         sysEnd.value = "";
         setAllTypes(sysTypesList,false);
         systemLogsData = [];
+        systemRangeStartMs = null;
+        systemRangeEndMs = null;
         sysCount.textContent = "";
         sysFetchInfo.textContent = "";
         renderSystemLogs();
         showOk("Очищено");
-        refreshSystemWsBinding();
     });
     sysSelectAllTypes.addEventListener("click", () => {
         setAllTypes(sysTypesList, true);
-        if (systemLastMode === "current") {
-            // Перефильтровать буфер
-            systemLogsData = systemLogsData.filter(l => shouldAcceptSystemLog(l) || true); // noop
-            renderSystemLogs();
-        }
+        // Перерисовать (новые типы будут попадать через WS при shouldAcceptSystemLog)
+        renderSystemLogs();
     });
     sysClearTypes.addEventListener("click", () => {
         setAllTypes(sysTypesList, false);
-        if (systemLastMode === "current") {
-            // При отсутствии выбранных типов показываем все текущие
-            renderSystemLogs();
-        }
+        renderSystemLogs();
     });
     sysTimeHeader.addEventListener("click", () => {
         systemSortAsc = !systemSortAsc;
@@ -543,19 +533,20 @@
         admEnd.value = "";
         setAllTypes(admTypesList,false);
         adminLogsData = [];
+        adminRangeStartMs = null;
+        adminRangeEndMs = null;
         admCount.textContent = "";
         admFetchInfo.textContent = "";
         renderAdminLogs();
         showOk("Очищено");
-        refreshAdminWsBinding();
     });
     admSelectAllTypes.addEventListener("click", () => {
         setAllTypes(admTypesList, true);
-        if (adminLastMode === "current") renderAdminLogs();
+        renderAdminLogs();
     });
     admClearTypes.addEventListener("click", () => {
         setAllTypes(admTypesList, false);
-        if (adminLastMode === "current") renderAdminLogs();
+        renderAdminLogs();
     });
 
     function toggleAdminSort(key) {
@@ -599,6 +590,9 @@
             await loadAdminTypesIfNeeded();
             await loadAdmin("current");
         }
+        // Убедимся что WS подключены
+        connectSystemWs();
+        connectAdminWs();
     });
 
     // Date inputs Enter -> refresh
@@ -621,9 +615,13 @@
             loadAdminTypesIfNeeded();
         }
 
+        // Поддерживаем постоянные подключения (для live range)
+        connectSystemWs();
+        connectAdminWs();
+
         window.addEventListener("beforeunload", () => {
-            closeSystemWs();
-            closeAdminWs();
+            try { sysWs && sysWs.close(); } catch {}
+            try { admWs && admWs.close(); } catch {}
         });
     }
     init();

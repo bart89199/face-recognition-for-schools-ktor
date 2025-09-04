@@ -20,7 +20,9 @@ class LiveMessages(val historyLength: Int) {
         }
         val frame = Frame.Text(text)
         sessions.forEach { s ->
-            runCatching { s.send(frame) }
+            runCatching {
+                s.send(frame)
+            }
         }
     }
 
