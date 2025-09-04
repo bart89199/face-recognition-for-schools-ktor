@@ -23,7 +23,7 @@ import kotlinx.serialization.json.Json
 fun Application.configureInfo() {
     routing {
         get ("/api/door") {
-            call.respond(PythonConnection.systemStatus?.door.toString())
+            call.respond(PythonConnection.forceDoor?.toString() ?: PythonConnection.systemStatus?.door.toString())
         }
         authenticate("session-auth") {
             setPermissions(UserPermissions(status = true)) {
