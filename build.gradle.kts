@@ -31,6 +31,8 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:$exposed_version")
     implementation("org.jetbrains.exposed:exposed-json:$exposed_version")
     implementation("org.jetbrains.exposed:exposed-dao:$exposed_version")
+    
+    implementation("io.ktor:ktor-server-partial-content:${ktor_version}")
 
     implementation("com.password4j:password4j:1.8.4")
 
@@ -42,6 +44,7 @@ dependencies {
     implementation("io.ktor:ktor-server-config-yaml")
     implementation("io.ktor:ktor-server-auth:${ktor_version}")
     implementation("io.ktor:ktor-server-sessions:${ktor_version}")
+    implementation("io.ktor:ktor-server-default-headers:3.2.3")
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 

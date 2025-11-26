@@ -7,6 +7,8 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.http.content.*
 import io.ktor.server.plugins.*
+import io.ktor.server.plugins.defaultheaders.DefaultHeaders
+import io.ktor.server.plugins.partialcontent.PartialContent
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -21,17 +23,27 @@ fun Application.configureRouting() {
         }
     }
 
+    install(DefaultHeaders) {
+        header("X-Engine", "Ktor") // will send this header with each response
+    }
+
+    install(PartialContent)
+
     routing {
         authenticate("session-auth") {
-
             get {
-                call.respondFile(getResource("main-page/index.html")!!)
+                call.respondBytes(
+                    call.application.environment.classLoader.getResource("main-page/index.html")!!.readBytes(),
+                    ContentType.Text.Html
+                )
             }
+
             staticResources("/main-page", "main-page")
 
             setPermissions(UserPermissions(admin = true)) {
                 staticResources("/admin", "admin")
             }
+
 
             setPermissions(UserPermissions(logs = true)) {
                 staticResources("/logs", "logs")
@@ -68,7 +80,6 @@ suspend inline fun <reified T : Any> ApplicationCall.receiveOrRespond(
     null
 }
 
-fun Application.getResource(path: String) = environment.classLoader.getResource(path)?.file?.let { File(it) }
 suspend fun RoutingContext.fetchQueryInts(queryParameter: String): List<Int>? = try {
     call.request.queryParameters[queryParameter]?.split(",")?.map { it.toInt() } ?: emptyList()
 } catch (_: NumberFormatException) {
