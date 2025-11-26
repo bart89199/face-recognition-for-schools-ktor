@@ -18,6 +18,9 @@
                 type: 'application/x-mpegURL'
             }]
         });
+        player.on('error', function() {
+            showToast('Ошибка воспроизведения потока', true);
+        });
     }
 
     /* Door control */
