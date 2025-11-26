@@ -5,21 +5,19 @@
     // If naming differs adjust STREAM_SRC below.
     const STREAM_SRC = '/stream/index.m3u8';
 
+    let player = null;
+
     function initVideo() {
-        if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-            videoEl.src = STREAM_SRC;
-        } else if (window.Hls) {
-            const hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-            hls.loadSource(STREAM_SRC);
-            hls.attachMedia(videoEl);
-            hls.on(Hls.Events.ERROR, (_e, data) => {
-                if (data.fatal) {
-                    showToast('Ошибка воспроизведения потока', true);
-                }
-            });
-        } else {
-            videoEl.innerHTML = 'Ваш браузер не поддерживает HLS.';
-        }
+        player = videojs(videoEl, {
+            fluid: true,
+            autoplay: true,
+            muted: true,
+            controls: true,
+            sources: [{
+                src: STREAM_SRC,
+                type: 'application/x-mpegURL'
+            }]
+        });
     }
 
     /* Door control */
@@ -299,6 +297,7 @@
     }, 5000);
 
     window.addEventListener('beforeunload', () => {
+        try { player && player.dispose(); } catch {}
         try { statusWs && statusWs.close(); } catch {}
         try { logsWs && logsWs.close(); } catch {}
     });
