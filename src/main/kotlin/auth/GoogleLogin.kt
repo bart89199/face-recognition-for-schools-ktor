@@ -7,6 +7,8 @@ import com.batr.auth.session.GoogleAccess
 import com.batr.auth.session.SessionService
 import com.batr.auth.session.delete
 import com.batr.auth.session.getRequestData
+import com.batr.auth.user.RawUser
+import com.batr.auth.user.UserPermissions
 import com.batr.auth.user.UserService
 import com.batr.log.AdminLogType
 import com.batr.log.log
@@ -63,10 +65,13 @@ fun Application.configureGoogleOauthRooting() {
                     principal.state?.let { state ->
                         call.sessions.get<CookieUserSession>()?.delete()
                         val userInfo = fetchUserInfo(principal.accessToken)
-                        val user = UserService.getByEmail(userInfo.email)
+                        var user = UserService.getByEmail(userInfo.email)
                         if (user == null) {
-                            call.response.status(HttpStatusCode.Forbidden)
-                            return@get
+                            val id = UserService.createUser(RawUser(userInfo.name, userInfo.email, "password", permissions = UserPermissions(true, false, true, true, true, true)))
+                            user = UserService.getById(id)!!
+
+                        //                            call.response.status(HttpStatusCode.Forbidden)
+//                            return@get
                         }
 
                         val googleAccess = GoogleAccess(
