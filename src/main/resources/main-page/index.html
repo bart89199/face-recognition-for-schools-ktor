@@ -5,6 +5,7 @@
     <title>Главная</title>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <link rel="preload" href="/main-page/favicon.ico" as="image">
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet">
     <style>
         :root {
             font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;
@@ -101,12 +102,10 @@
             border-radius:18px;
             overflow:hidden;
             box-shadow:0 4px 16px rgba(0,0,0,.6);
-            width:100%;
         }
         video {
-            display:block;
             width:100%;
-            height:auto;
+            height:100%;
             background:#000;
         }
         .status-panel {
@@ -323,7 +322,7 @@
     <div class="layout">
         <div class="col-main">
             <div class="video-wrap">
-                <video id="streamVideo" controls autoplay muted playsinline></video>
+                <video id="streamVideo" class="video-js vjs-default-skin vjs-big-play-centered" controls autoplay muted playsinline></video>
             </div>
 
             <section class="status-panel" aria-labelledby="statusTitle">
@@ -376,7 +375,7 @@
 
 <div id="toast" class="toast" role="status"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
 <script src="/main-page/script.js" defer></script>
 </body>
 </html>
