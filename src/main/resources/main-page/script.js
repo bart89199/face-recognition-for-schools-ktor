@@ -1,4 +1,4 @@
-(function() {
+(function () {
     const videoEl = document.getElementById('streamVideo');
 
     // HLS stream assumptions: master playlist located at /stream/index.m3u8
@@ -14,13 +14,17 @@
             fluid: true,
             autoplay: true,
             muted: true,
+            liveui: true,
             controls: true,
+            controlBar: {
+                volumePanel: false,
+            },
             sources: [{
                 src: STREAM_SRC,
                 type: 'application/x-mpegURL'
             }]
         });
-        player.on('error', function() {
+        player.on('error', function () {
             showToast('Ошибка воспроизведения потока', true);
         });
     }
@@ -63,7 +67,7 @@
 
     async function fetchDoorForce() {
         try {
-            const res = await fetch('/api/door/force', { credentials:'include' });
+            const res = await fetch('/api/door/force', {credentials: 'include'});
             if (!res.ok) return;
             const txt = (await res.text()).trim();
             forceDoorStatus = (txt === 'true') ? true : (txt === 'false' ? false : null);
@@ -79,10 +83,10 @@
         setButtonsDisabled(true);
         try {
             const res = await fetch('/api/door/force', {
-                method:'POST',
-                headers:{ 'Content-Type':'application/json' },
-                credentials:'include',
-                body: JSON.stringify({ status: value })
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include',
+                body: JSON.stringify({status: value})
             });
             if (!res.ok) {
                 showToast('Не удалось изменить состояние двери', true);
@@ -135,7 +139,10 @@
             retryStatusWs();
         };
         statusWs.onerror = () => {
-            try { statusWs.close(); } catch {}
+            try {
+                statusWs.close();
+            } catch {
+            }
         };
     }
 
@@ -210,7 +217,10 @@
             retryLogsWs();
         };
         logsWs.onerror = () => {
-            try { logsWs.close(); } catch {}
+            try {
+                logsWs.close();
+            } catch {
+            }
         };
     }
 
@@ -261,7 +271,7 @@
 
     function escapeHtml(s) {
         return (s == null ? '' : String(s)).replace(/[&<>"']/g, c =>
-            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])
+            ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c])
         );
     }
 
@@ -272,13 +282,16 @@
     }
 
     const toastEl = document.getElementById('toast');
-    function showToast(msg, error=false, timeout=2600) {
+
+    function showToast(msg, error = false, timeout = 2600) {
         if (!msg) return;
         toastEl.textContent = msg;
         toastEl.className = 'toast' + (error ? ' error' : '');
         toastEl.style.display = 'block';
         clearTimeout(showToast._t);
-        showToast._t = setTimeout(() => { toastEl.style.display='none'; }, timeout);
+        showToast._t = setTimeout(() => {
+            toastEl.style.display = 'none';
+        }, timeout);
     }
 
     /* Init */
@@ -291,18 +304,25 @@
     setInterval(async () => {
         if (!statusWs || statusWs.readyState !== 1) {
             try {
-                const res = await fetch('/api/status', { credentials:'include' });
+                const res = await fetch('/api/status', {credentials: 'include'});
                 if (res.status === 204) return;
                 if (res.ok) {
                     const data = await res.json();
                     renderStatus(data);
                 }
-            } catch {}
+            } catch {
+            }
         }
     }, 5000);
 
     window.addEventListener('beforeunload', () => {
-        try { statusWs && statusWs.close(); } catch {}
-        try { logsWs && logsWs.close(); } catch {}
+        try {
+            statusWs && statusWs.close();
+        } catch {
+        }
+        try {
+            logsWs && logsWs.close();
+        } catch {
+        }
     });
 })();
