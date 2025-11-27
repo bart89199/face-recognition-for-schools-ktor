@@ -6,23 +6,24 @@
     const STREAM_SRC = '/stream/stream.m3u8';
 
     function initVideo() {
-        if (typeof videojs === 'undefined') {
-            showToast('Ошибка: video.js не загружен', true);
-            return;
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(STREAM_SRC);
+            hls.attachMedia(videoEl);
+            hls.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                    showToast('Ошибка воспроизведения потока', true);
+                }
+            });
+        } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            // Native HLS support (e.g. Safari)
+            videoEl.src = STREAM_SRC;
+            videoEl.addEventListener('error', function() {
+                showToast('Ошибка воспроизведения потока', true);
+            });
+        } else {
+            showToast('Ошибка: браузер не поддерживает HLS', true);
         }
-        const player = videojs(videoEl, {
-            fluid: true,
-            autoplay: true,
-            muted: true,
-            controls: true,
-            sources: [{
-                src: STREAM_SRC,
-                type: 'application/x-mpegURL'
-            }]
-        });
-        player.on('error', function() {
-            showToast('Ошибка воспроизведения потока', true);
-        });
     }
 
     /* Door control */
