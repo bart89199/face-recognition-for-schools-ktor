@@ -6,23 +6,50 @@
     const STREAM_SRC = '/stream/stream.m3u8';
 
     function initVideo() {
-        if (typeof videojs === 'undefined') {
-            showToast('Ошибка: video.js не загружен', true);
-            return;
+        if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+            const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true
+            });
+            hls.loadSource(STREAM_SRC);
+            hls.attachMedia(videoEl);
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                videoEl.play().catch(function() {
+                    // Autoplay may be blocked; user can click play
+                });
+            });
+            hls.on(Hls.Events.ERROR, function(event, data) {
+                if (data.fatal) {
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            showToast('Сетевая ошибка, пытаемся восстановить...', true);
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            showToast('Ошибка медиа, пытаемся восстановить...', true);
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            showToast('Ошибка воспроизведения потока', true);
+                            hls.destroy();
+                            break;
+                    }
+                }
+            });
+        } else if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
+            // Native HLS support (Safari)
+            videoEl.src = STREAM_SRC;
+            videoEl.addEventListener('loadedmetadata', function() {
+                videoEl.play().catch(function() {
+                    // Autoplay may be blocked; user can click play
+                });
+            });
+            videoEl.addEventListener('error', function() {
+                showToast('Ошибка воспроизведения потока', true);
+            });
+        } else {
+            showToast('Ваш браузер не поддерживает HLS потоки', true);
         }
-        const player = videojs(videoEl, {
-            fluid: true,
-            autoplay: true,
-            muted: true,
-            controls: true,
-            sources: [{
-                src: STREAM_SRC,
-                type: 'application/x-mpegURL'
-            }]
-        });
-        player.on('error', function() {
-            showToast('Ошибка воспроизведения потока', true);
-        });
     }
 
     /* Door control */
