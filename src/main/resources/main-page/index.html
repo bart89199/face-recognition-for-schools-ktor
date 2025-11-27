@@ -130,6 +130,8 @@
             gap: 12px;
             min-width: 0;
             max-width: 100%;
+            max-height: 100%;
+            overflow-y: auto;
         }
 
         .video-wrap {
@@ -139,6 +141,9 @@
             border-radius: 18px;
             overflow: hidden;
             box-shadow: 0 4px 16px rgba(0, 0, 0, .6);
+            flex-shrink: 0;
+            resize: horizontal;
+            width: calc(75vh * 16 / 9);
         }
 
         video {
@@ -160,7 +165,7 @@
 
         .status-grid {
             display: grid;
-            grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+            grid-template-columns:repeat(auto-fill, minmax(min(100%, 180px), 1fr));
             gap: 10px 14px;
             font-size: .7rem;
         }
