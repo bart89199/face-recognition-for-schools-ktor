@@ -5,33 +5,36 @@
     // If naming differs adjust STREAM_SRC below.
     const STREAM_SRC = '/stream/stream.m3u8';
 
+    let hlsInstance = null;
+
     function initVideo() {
         if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-            const hls = new Hls({
+            hlsInstance = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true
             });
-            hls.loadSource(STREAM_SRC);
-            hls.attachMedia(videoEl);
-            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+            hlsInstance.loadSource(STREAM_SRC);
+            hlsInstance.attachMedia(videoEl);
+            hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
                 videoEl.play().catch(function() {
                     // Autoplay may be blocked; user can click play
                 });
             });
-            hls.on(Hls.Events.ERROR, function(event, data) {
+            hlsInstance.on(Hls.Events.ERROR, function(event, data) {
                 if (data.fatal) {
                     switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
                             showToast('Сетевая ошибка, пытаемся восстановить...', true);
-                            hls.startLoad();
+                            hlsInstance.startLoad();
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
                             showToast('Ошибка медиа, пытаемся восстановить...', true);
-                            hls.recoverMediaError();
+                            hlsInstance.recoverMediaError();
                             break;
                         default:
                             showToast('Ошибка воспроизведения потока', true);
-                            hls.destroy();
+                            hlsInstance.destroy();
+                            hlsInstance = null;
                             break;
                     }
                 }
@@ -329,6 +332,7 @@
     }, 5000);
 
     window.addEventListener('beforeunload', () => {
+        try { hlsInstance && hlsInstance.destroy(); } catch {}
         try { statusWs && statusWs.close(); } catch {}
         try { logsWs && logsWs.close(); } catch {}
     });
