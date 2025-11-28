@@ -332,16 +332,24 @@
     const layoutContainer = document.querySelector('.layout');
 
     if (resizer && colMain && logsSidebar && layoutContainer) {
+        // Layout constants (should match CSS values)
+        const SIDEBAR_BREAKPOINT = 1180; // Viewport width below which sidebar is hidden
+        const LAYOUT_PADDING_LEFT = 16;
+        const LAYOUT_PADDING_RIGHT = 16;
+        const LAYOUT_PADDING_TOTAL = LAYOUT_PADDING_LEFT + LAYOUT_PADDING_RIGHT;
+        const RESIZER_WIDTH = 6;
+        const MIN_SIDEBAR_WIDTH = 250;
+        const MIN_MAIN_WIDTH = 300;
+        const MAX_SIDEBAR_RATIO = 0.5; // Max 50% of available width
+
         let isResizing = false;
 
         // Set responsive default widths based on viewport
         function setDefaultWidths() {
             const viewportWidth = window.innerWidth;
-            if (viewportWidth > 1180) {
-                // Calculate available width (excluding padding)
-                const layoutPadding = 32; // 16px on each side
-                const resizerWidth = 6;
-                const availableWidth = viewportWidth - layoutPadding - resizerWidth;
+            if (viewportWidth > SIDEBAR_BREAKPOINT) {
+                // Calculate available width (excluding padding and resizer)
+                const availableWidth = viewportWidth - LAYOUT_PADDING_TOTAL - RESIZER_WIDTH;
 
                 // Set default ratio based on screen size
                 let sidebarWidthPct;
@@ -353,7 +361,7 @@
                     sidebarWidthPct = 0.35; // 35% for smaller screens
                 }
 
-                const sidebarWidth = Math.max(250, Math.min(availableWidth * 0.5, availableWidth * sidebarWidthPct));
+                const sidebarWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(availableWidth * MAX_SIDEBAR_RATIO, availableWidth * sidebarWidthPct));
                 logsSidebar.style.flexBasis = sidebarWidth + 'px';
             }
         }
@@ -382,25 +390,20 @@
 
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const layoutRect = layoutContainer.getBoundingClientRect();
-            const layoutPaddingLeft = 16;
-            const layoutPaddingRight = 16;
-            const resizerWidth = 6;
 
             // Calculate the available space
-            const availableWidth = layoutRect.width - layoutPaddingLeft - layoutPaddingRight - resizerWidth;
+            const availableWidth = layoutRect.width - LAYOUT_PADDING_TOTAL - RESIZER_WIDTH;
 
             // Calculate new sidebar width (from resizer position to right edge)
-            const resizerPosFromLeft = clientX - layoutRect.left - layoutPaddingLeft;
+            const resizerPosFromLeft = clientX - layoutRect.left - LAYOUT_PADDING_LEFT;
             const newSidebarWidth = availableWidth - resizerPosFromLeft;
 
             // Apply constraints
-            const minSidebarWidth = 250;
-            const maxSidebarWidth = availableWidth * 0.5;
-            const minMainWidth = 300;
+            const maxSidebarWidth = availableWidth * MAX_SIDEBAR_RATIO;
 
-            if (newSidebarWidth >= minSidebarWidth &&
+            if (newSidebarWidth >= MIN_SIDEBAR_WIDTH &&
                 newSidebarWidth <= maxSidebarWidth &&
-                resizerPosFromLeft >= minMainWidth) {
+                resizerPosFromLeft >= MIN_MAIN_WIDTH) {
                 logsSidebar.style.flexBasis = newSidebarWidth + 'px';
             }
         }
@@ -420,8 +423,8 @@
         window.addEventListener('resize', () => {
             clearTimeout(resizeTimeout);
             resizeTimeout = setTimeout(() => {
-                // Only reset if not manually resized recently
-                if (window.innerWidth <= 1180) {
+                // Only reset if sidebar is hidden at this viewport width
+                if (window.innerWidth <= SIDEBAR_BREAKPOINT) {
                     logsSidebar.style.flexBasis = '';
                 }
             }, 150);
