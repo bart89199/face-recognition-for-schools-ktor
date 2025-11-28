@@ -324,4 +324,110 @@
         } catch {
         }
     });
+
+    /* Column Resizer */
+    const resizer = document.getElementById('dragMe');
+    const colMain = document.querySelector('.col-main');
+    const logsSidebar = document.querySelector('.logs-sidebar');
+    const layoutContainer = document.querySelector('.layout');
+
+    if (resizer && colMain && logsSidebar && layoutContainer) {
+        // Layout constants (should match CSS values)
+        const SIDEBAR_BREAKPOINT = 1180; // Viewport width below which sidebar is hidden
+        const LAYOUT_PADDING_LEFT = 16;
+        const LAYOUT_PADDING_RIGHT = 16;
+        const LAYOUT_PADDING_TOTAL = LAYOUT_PADDING_LEFT + LAYOUT_PADDING_RIGHT;
+        const RESIZER_WIDTH = 6;
+        const MIN_SIDEBAR_WIDTH = 250;
+        const MIN_MAIN_WIDTH = 300;
+        const MAX_SIDEBAR_RATIO = 0.5; // Max 50% of available width
+
+        let isResizing = false;
+
+        // Set responsive default widths based on viewport
+        function setDefaultWidths() {
+            const viewportWidth = window.innerWidth;
+            if (viewportWidth > SIDEBAR_BREAKPOINT) {
+                // Calculate available width (excluding padding and resizer)
+                const availableWidth = viewportWidth - LAYOUT_PADDING_TOTAL - RESIZER_WIDTH;
+
+                // Set default ratio based on screen size
+                let sidebarWidthPct;
+                if (viewportWidth > 1600) {
+                    sidebarWidthPct = 0.25; // 25% for large screens
+                } else if (viewportWidth > 1400) {
+                    sidebarWidthPct = 0.30; // 30% for medium-large screens
+                } else {
+                    sidebarWidthPct = 0.35; // 35% for smaller screens
+                }
+
+                const sidebarWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(availableWidth * MAX_SIDEBAR_RATIO, availableWidth * sidebarWidthPct));
+                logsSidebar.style.flexBasis = sidebarWidth + 'px';
+            }
+        }
+
+        setDefaultWidths();
+
+        function startResize(e) {
+            isResizing = true;
+            resizer.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        }
+
+        function stopResize() {
+            if (isResizing) {
+                isResizing = false;
+                resizer.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        }
+
+        function doResize(e) {
+            if (!isResizing) return;
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const layoutRect = layoutContainer.getBoundingClientRect();
+
+            // Calculate the available space
+            const availableWidth = layoutRect.width - LAYOUT_PADDING_TOTAL - RESIZER_WIDTH;
+
+            // Calculate new sidebar width (from resizer position to right edge)
+            const resizerPosFromLeft = clientX - layoutRect.left - LAYOUT_PADDING_LEFT;
+            const newSidebarWidth = availableWidth - resizerPosFromLeft;
+
+            // Apply constraints
+            const maxSidebarWidth = availableWidth * MAX_SIDEBAR_RATIO;
+
+            if (newSidebarWidth >= MIN_SIDEBAR_WIDTH &&
+                newSidebarWidth <= maxSidebarWidth &&
+                resizerPosFromLeft >= MIN_MAIN_WIDTH) {
+                logsSidebar.style.flexBasis = newSidebarWidth + 'px';
+            }
+        }
+
+        // Mouse events
+        resizer.addEventListener('mousedown', startResize);
+        document.addEventListener('mousemove', doResize);
+        document.addEventListener('mouseup', stopResize);
+
+        // Touch events for mobile/tablet
+        resizer.addEventListener('touchstart', startResize, {passive: false});
+        document.addEventListener('touchmove', doResize, {passive: false});
+        document.addEventListener('touchend', stopResize);
+
+        // Reset widths on window resize (optional, for better responsiveness)
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                // Only reset if sidebar is hidden at this viewport width
+                if (window.innerWidth <= SIDEBAR_BREAKPOINT) {
+                    logsSidebar.style.flexBasis = '';
+                }
+            }, 150);
+        });
+    }
 })();

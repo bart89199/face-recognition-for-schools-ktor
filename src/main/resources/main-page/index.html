@@ -22,8 +22,6 @@
             min-height: 100vh;
             background: #0f172a;
             color: #f1f5f9;
-            overflow: hidden;
-            overflow-y: auto;
         }
 
         header {
@@ -109,31 +107,26 @@
             flex: 1;
             display: flex;
             padding-top: 58px;
-            height: 100vh;
+            min-height: 100vh;
             width: 100%;
-            overflow: hidden;
         }
 
         .layout {
             flex: 1;
             display: flex;
             padding: 14px 16px 16px;
-            gap: 14px;
-            /*height: 100%;*/
-            overflow: hidden;
+            gap: 0;
             align-items: flex-start;
         }
 
         .col-main {
-            flex: 0 1 auto;
-            width: fit-content;
+            flex: 1 1 60%;
             display: flex;
             flex-direction: column;
             gap: 12px;
-            min-width: 0;
+            min-width: 300px;
             max-width: 100%;
-            max-height: 100%;
-            overflow-y: auto;
+            padding-right: 14px;
         }
 
         .video-wrap {
@@ -144,8 +137,6 @@
             overflow: hidden;
             box-shadow: 0 4px 16px rgba(0, 0, 0, .6);
             flex-shrink: 0;
-            resize: horizontal;
-            /*width: calc(75vh * 16 / 9);*/
         }
 
         video {
@@ -236,11 +227,39 @@
             color: #93a3b8;
         }
 
+        /* Resizer between columns */
+        .resizer {
+            width: 6px;
+            cursor: col-resize;
+            background: transparent;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+            transition: background .15s;
+        }
+
+        .resizer:hover,
+        .resizer.dragging {
+            background: #3b82f6;
+        }
+
+        .resizer::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 2px;
+            height: 40px;
+            background: #475569;
+            border-radius: 2px;
+        }
+
         /* Logs sidebar */
         .logs-sidebar {
-            width: 390px;
-            max-width: 40%;
-            min-width: 300px;
+            flex: 0 0 350px;
+            min-width: 250px;
+            max-width: 50%;
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -399,8 +418,13 @@
         }
 
         @media (max-width: 1180px) {
-            .logs-sidebar {
+            .logs-sidebar,
+            .resizer {
                 display: none;
+            }
+
+            .col-main {
+                padding-right: 0;
             }
         }
 
@@ -510,6 +534,8 @@
                 </div>
             </section>
         </div>
+
+        <div class="resizer" id="dragMe"></div>
 
         <aside class="logs-sidebar" aria-labelledby="logsTitle">
             <div class="logs-header">
