@@ -324,4 +324,107 @@
         } catch {
         }
     });
+
+    /* Column Resizer */
+    const resizer = document.getElementById('dragMe');
+    const colMain = document.querySelector('.col-main');
+    const logsSidebar = document.querySelector('.logs-sidebar');
+    const layoutContainer = document.querySelector('.layout');
+
+    if (resizer && colMain && logsSidebar && layoutContainer) {
+        let isResizing = false;
+
+        // Set responsive default widths based on viewport
+        function setDefaultWidths() {
+            const viewportWidth = window.innerWidth;
+            if (viewportWidth > 1180) {
+                // Calculate available width (excluding padding)
+                const layoutPadding = 32; // 16px on each side
+                const resizerWidth = 6;
+                const availableWidth = viewportWidth - layoutPadding - resizerWidth;
+
+                // Set default ratio based on screen size
+                let sidebarWidthPct;
+                if (viewportWidth > 1600) {
+                    sidebarWidthPct = 0.25; // 25% for large screens
+                } else if (viewportWidth > 1400) {
+                    sidebarWidthPct = 0.30; // 30% for medium-large screens
+                } else {
+                    sidebarWidthPct = 0.35; // 35% for smaller screens
+                }
+
+                const sidebarWidth = Math.max(250, Math.min(availableWidth * 0.5, availableWidth * sidebarWidthPct));
+                logsSidebar.style.flexBasis = sidebarWidth + 'px';
+            }
+        }
+
+        setDefaultWidths();
+
+        function startResize(e) {
+            isResizing = true;
+            resizer.classList.add('dragging');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        }
+
+        function stopResize() {
+            if (isResizing) {
+                isResizing = false;
+                resizer.classList.remove('dragging');
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            }
+        }
+
+        function doResize(e) {
+            if (!isResizing) return;
+
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const layoutRect = layoutContainer.getBoundingClientRect();
+            const layoutPaddingLeft = 16;
+            const layoutPaddingRight = 16;
+            const resizerWidth = 6;
+
+            // Calculate the available space
+            const availableWidth = layoutRect.width - layoutPaddingLeft - layoutPaddingRight - resizerWidth;
+
+            // Calculate new sidebar width (from resizer position to right edge)
+            const resizerPosFromLeft = clientX - layoutRect.left - layoutPaddingLeft;
+            const newSidebarWidth = availableWidth - resizerPosFromLeft;
+
+            // Apply constraints
+            const minSidebarWidth = 250;
+            const maxSidebarWidth = availableWidth * 0.5;
+            const minMainWidth = 300;
+
+            if (newSidebarWidth >= minSidebarWidth &&
+                newSidebarWidth <= maxSidebarWidth &&
+                resizerPosFromLeft >= minMainWidth) {
+                logsSidebar.style.flexBasis = newSidebarWidth + 'px';
+            }
+        }
+
+        // Mouse events
+        resizer.addEventListener('mousedown', startResize);
+        document.addEventListener('mousemove', doResize);
+        document.addEventListener('mouseup', stopResize);
+
+        // Touch events for mobile/tablet
+        resizer.addEventListener('touchstart', startResize, {passive: false});
+        document.addEventListener('touchmove', doResize, {passive: false});
+        document.addEventListener('touchend', stopResize);
+
+        // Reset widths on window resize (optional, for better responsiveness)
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                // Only reset if not manually resized recently
+                if (window.innerWidth <= 1180) {
+                    logsSidebar.style.flexBasis = '';
+                }
+            }, 150);
+        });
+    }
 })();
