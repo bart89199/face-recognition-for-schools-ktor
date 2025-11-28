@@ -132,7 +132,15 @@
 <body>
 <header>
     <h1>Пользователи и сессии</h1>
-    <button class="logout-btn" onclick="location.href='/logout'">Выйти</button>
+    <nav style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="outline" onclick="location.href='/'">Главная</button>
+        <button class="outline" onclick="location.href='/profile'">Профиль</button>
+        <button class="outline" onclick="location.href='/logs'">Логи</button>
+        <button class="outline" onclick="location.href='/settings'">Настройки</button>
+        <button class="outline" onclick="location.href='/records'">Записи</button>
+        <button class="outline" onclick="location.href='/status'">Статус</button>
+        <button class="danger" onclick="location.href='/logout'">Выйти</button>
+    </nav>
 </header>
 <main>
     <div id="err" class="error" role="alert"></div>
