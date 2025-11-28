@@ -151,12 +151,15 @@
 <body>
 <header>
     <h1>Логи</h1>
-    <div class="inline">
+    <nav style="display:flex; gap:10px; flex-wrap:wrap;">
         <button class="outline" onclick="location.href='/'">Главная</button>
         <button class="outline" onclick="location.href='/profile'">Профиль</button>
         <button class="outline" onclick="location.href='/admin/users'">Пользователи</button>
-        <button class="danger" style="background:#dc2626;border:none;" onclick="location.href='/logout'">Выйти</button>
-    </div>
+        <button class="outline" onclick="location.href='/settings'">Настройки</button>
+        <button class="outline" onclick="location.href='/records'">Записи</button>
+        <button class="outline" onclick="location.href='/status'">Статус</button>
+        <button class="danger" onclick="location.href='/logout'">Выйти</button>
+    </nav>
 </header>
 <main>
     <div class="tabs" id="tabs">
