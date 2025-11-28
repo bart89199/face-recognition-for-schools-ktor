@@ -1,8 +1,7 @@
 (function () {
     const videoEl = document.getElementById('streamVideo');
 
-    // HLS stream assumptions: master playlist located at /stream/index.m3u8
-    // If naming differs adjust STREAM_SRC below.
+
     const STREAM_SRC = '/stream/stream.m3u8';
 
     function initVideo() {

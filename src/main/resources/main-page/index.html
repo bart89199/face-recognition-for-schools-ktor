@@ -23,6 +23,7 @@
             background: #0f172a;
             color: #f1f5f9;
             overflow: hidden;
+            overflow-y: auto;
         }
 
         header {
@@ -120,6 +121,7 @@
             gap: 14px;
             /*height: 100%;*/
             overflow: hidden;
+            align-items: flex-start;
         }
 
         .col-main {
@@ -247,6 +249,9 @@
             padding: 14px 14px 18px;
             box-shadow: 0 4px 16px rgba(0, 0, 0, .55);
             overflow: hidden;
+            position: sticky;
+            top: 74px;
+            max-height: calc(100vh - 90px);
         }
 
         .logs-header {
@@ -486,7 +491,7 @@
                     <button id="btnDoorClose" class="secondary" title="Принудительно закрыть">Закрыть</button>
                     <button id="btnDoorAuto" class="secondary" title="Автоматический режим (снять принуд.)">Авто
                     </button>
-                    <button id="btnDoorRefresh" class="outline" title="Обновить статус двери">Обн.</button>
+                    <button id="btnDoorRefresh" class="secondary" title="Обновить статус двери">Обн.</button>
                 </div>
                 <div class="divider"></div>
                 <div class="status-grid" id="statusGrid">
