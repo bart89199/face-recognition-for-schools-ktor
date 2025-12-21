@@ -135,7 +135,7 @@
         closeBtn.type='button';
         closeBtn.className='close';
         closeBtn.setAttribute('aria-label','Закрыть уведомление');
-        closeBtn.innerHTML='&times;';
+        closeBtn.innerHTML='×';
         closeBtn.addEventListener('click', ()=> wrap.remove());
 
         wrap.appendChild(msgDiv);

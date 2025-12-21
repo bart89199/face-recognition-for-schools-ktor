@@ -1,31 +1,109 @@
 (function () {
+    // const videoEl = document.getElementById('streamVideo');
+
+
+    // const STREAM_SRC = '/stream/stream.m3u8';
+    //
+    // function initVideo() {
+    //     if (typeof videojs === 'undefined') {
+    //         showToast('Ошибка: video.js не загружен', true);
+    //         return;
+    //     }
+    //     const player = videojs(videoEl, {
+    //         fluid: true,
+    //         autoplay: true,
+    //         muted: true,
+    //         liveui: true,
+    //         controls: true,
+    //         controlBar: {
+    //             volumePanel: false,
+    //         },
+    //         sources: [{
+    //             src: STREAM_SRC,
+    //             type: 'application/x-mpegURL'
+    //         }]
+    //     });
+    //     player.on('error', function () {
+    //         showToast('Ошибка воспроизведения потока', true);
+    //     });
+    // }
     const videoEl = document.getElementById('streamVideo');
 
+    let pc = null;
 
-    const STREAM_SRC = '/stream/stream.m3u8';
+    async function startWebRTC() {
+        const config = {
+            sdpSemantics: 'unified-plan'
+        };
+
+        // 1. Создаем PeerConnection
+        pc = new RTCPeerConnection(config);
+
+        // 2. Настраиваем обработку входящих треков
+        pc.ontrack = function (evt) {
+            if (evt.track.kind === 'video') {
+                videoEl.srcObject = evt.streams[0];
+            }
+        };
+
+        // 3. Добавляем трансивер (мы хотим только получать видео)
+        pc.addTransceiver('video', {direction: 'recvonly'});
+
+        try {
+            // 4. Создаем Offer
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            // 5. Ждем сбора ICE кандидатов (в локальной сети это происходит быстро)
+            // Либо можно отправить offer сразу, а кандидатов слать отдельно (Trickle ICE),
+            // но для простого случая 'wait for ice gathering' проще.
+            await new Promise((resolve) => {
+                if (pc.iceGatheringState === 'complete') {
+                    resolve();
+                } else {
+                    function checkState() {
+                        if (pc.iceGatheringState === 'complete') {
+                            pc.removeEventListener('icegatheringstatechange', checkState);
+                            resolve();
+                        }
+                    }
+                    pc.addEventListener('icegatheringstatechange', checkState);
+                }
+            });
+
+            const offerPayload = {
+                sdp: pc.localDescription.sdp,
+                type: pc.localDescription.type
+            };
+
+            // 6. Отправляем Offer на сервер (Ktor -> Python)
+            const response = await fetch('/api/stream/offer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(offerPayload)
+            });
+
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+
+            // 7. Получаем Answer и устанавливаем его
+            const answer = await response.json();
+            await pc.setRemoteDescription(answer);
+
+        } catch (e) {
+            showToast('Ошибка WebRTC соединения', true);
+            console.error(e);
+            // Попробуем переподключиться через 3 секунды
+            setTimeout(startWebRTC, 3000);
+        }
+    }
 
     function initVideo() {
-        if (typeof videojs === 'undefined') {
-            showToast('Ошибка: video.js не загружен', true);
-            return;
-        }
-        const player = videojs(videoEl, {
-            fluid: true,
-            autoplay: true,
-            muted: true,
-            liveui: true,
-            controls: true,
-            controlBar: {
-                volumePanel: false,
-            },
-            sources: [{
-                src: STREAM_SRC,
-                type: 'application/x-mpegURL'
-            }]
-        });
-        player.on('error', function () {
-            showToast('Ошибка воспроизведения потока', true);
-        });
+        // Запускаем WebRTC
+        startWebRTC();
     }
 
     /* Door control */
@@ -161,6 +239,10 @@
             statDoor.textContent = data.door ? 'Открыта' : 'Закрыта';
         } else {
             statDoor.textContent = '—';
+        }
+        // Update forceDoor status from WebSocket if present
+        if (data.hasOwnProperty('forceDoor')) {
+            forceDoorStatus = data.forceDoor;
         }
         statRecognitions.innerHTML = '';
         if (Array.isArray(data.recognitions) && data.recognitions.length) {

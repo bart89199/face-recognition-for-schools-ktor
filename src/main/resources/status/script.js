@@ -75,6 +75,11 @@
             doorHintEl.textContent = data.door ? 'Дверь сейчас открыта' : 'Дверь закрыта';
         }
 
+        // Update forceDoor status from WebSocket if present
+        if (data.hasOwnProperty('forceDoor')) {
+            currentForce = data.forceDoor;
+            updateForceStatusLine();
+        }
         handleRecognition(data.recognitions);
     }
 

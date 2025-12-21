@@ -27,25 +27,32 @@ import kotlin.properties.Delegates
 
 @Serializable
 data class SystemSettings(
+    @SerialName("video_height") val videoHeight: Int,
+    @SerialName("video_width") val videoWidth: Int,
+    @SerialName("video_fps") val videoFps: Int,
+    @SerialName("cam_port") val camPort: String,
+    @SerialName("records_folder") val recordsFolder: String,
+    @SerialName("saved_detection_folder") val savedDetectionFolder: String,
     @SerialName("close_delay_ms") val closeDelayMs: Int,
+    @SerialName("face_recognition_model") val faceRecognitionModel: String,
+    @SerialName("record_videos") val recordVideos: Boolean,
     @SerialName("save_detection") val saveDetection: Boolean,
-    @SerialName("use_arduino") val useArduino: Boolean,
-    @SerialName("forms_autoload") val formsAutoload: Boolean,
-    @SerialName("forms_check_interval_ms") val formsCheckIntervalMs: Int,
 
     @SerialName("last_frames_amount") val lastFramesAmount: Int,
     @SerialName("min_frames_for_detection") val minFramesForDetection: Int,
     @SerialName("need_blinks") val needBlinks: Int,
     @SerialName("frames_for_eyes_check") val framesForEyesCheck: Int,
     @SerialName("wait_frames_for_detection") val waitFramesForDetection: Int,
-    @SerialName("cam_port") val camPort: String,
-    @SerialName("arduino_port") val arduinoPort: String,
+
+
+    @SerialName("unknown_name") val unknownName: String,
+    @SerialName("ktor_connect_url") val ktorConnectUrl: String,
+
     @SerialName("max_faces") val maxFaces: Int,
     @SerialName("face_detection_mode") val faceDetectionMode: Int,
     @SerialName("max_avg_distance") val maxAvgDistance: Double,
     @SerialName("max_percent_distance") val maxPercentDistance: Double,
     @SerialName("min_match_for_person") val minMatchForPerson: Double,
-    @SerialName("save_delay_ms") val saveDelayMs: Int,
     @SerialName("min_eyes_difference") val minEyesDifference: Double,
     @SerialName("min_dif_for_blink") val minDifForBlink: Double,
     @SerialName("blinked_eyes_open") val blinkedEyesOpen: Boolean,
@@ -53,53 +60,60 @@ data class SystemSettings(
 )
 
 fun SystemSettings.update(name: String, value: String): SystemSettings = when (name) {
+    "video_height" -> copy(videoHeight = parseInt(value, 1, 1e6.toInt()))
+    "video_width" -> copy(videoWidth = parseInt(value, 1, 1e6.toInt()))
+    "video_fps" -> copy(videoFps = parseInt(value, 1, 1000))
+    "cam_port" -> copy(camPort = value)
+    "records_folder" -> copy(recordsFolder = value)
+    "saved_detection_folder" -> copy(savedDetectionFolder = value)
     "close_delay_ms" -> copy(closeDelayMs = parseInt(value, 100, 1e9.toInt()))
+    "face_recognition_model" -> copy(faceRecognitionModel = value)
+    "record_videos" -> copy(recordVideos = parseBoolean(value))
     "save_detection" -> copy(saveDetection = parseBoolean(value))
-    "use_arduino" -> copy(useArduino = parseBoolean(value))
-    "forms_autoload" -> copy(formsAutoload = parseBoolean(value))
-    "forms_check_interval_ms" -> copy(formsCheckIntervalMs = parseInt(value, 100, 1e9.toInt()))
 
     "last_frames_amount" -> copy(lastFramesAmount = parseInt(value, 0, 1000))
     "min_frames_for_detection" -> copy(minFramesForDetection = parseInt(value, 0, 1000))
     "need_blinks" -> copy(needBlinks = parseInt(value, 0, 1000))
     "frames_for_eyes_check" -> copy(framesForEyesCheck = parseInt(value, 0, 1000))
     "wait_frames_for_detection" -> copy(waitFramesForDetection = parseInt(value, 0, 1000))
-    "cam_port" -> copy(camPort = value)
-    "arduino_port" -> copy(arduinoPort = value)
+    "unknown_name" -> copy(unknownName = value)
+    "ktor_connect_url" -> copy(ktorConnectUrl = value)
     "max_faces" -> copy(maxFaces = parseInt(value, 0, 1000))
     "face_detection_mode" -> copy(faceDetectionMode = parseInt(value, 1, 2))
     "max_avg_distance" -> copy(maxAvgDistance = parseDouble(value, 0.0, 1.0))
     "max_percent_distance" -> copy(maxPercentDistance = parseDouble(value, 0.0, 1.0))
     "min_match_for_person" -> copy(minMatchForPerson = parseDouble(value, 0.0, 1.0))
-    "save_delay_ms" -> copy(saveDelayMs = parseInt(value, 0, 1e9.toInt()))
     "min_eyes_difference" -> copy(minEyesDifference = parseDouble(value, 0.0, 10.0))
     "min_dif_for_blink" -> copy(minDifForBlink = parseDouble(value, 0.0, 10.0))
     "blinked_eyes_open" -> copy(blinkedEyesOpen = parseBoolean(value))
     "close_eyes_threshold" -> copy(closeEyesThreshold = parseDouble(value, 0.0, 10.0))
-
     else -> throw invalidNameException
 }
 
 fun SystemSettings.toModel(): List<SettingModel> {
     val list = ArrayList<SettingModel>()
+    list.add(SettingModel("video_height", videoHeight.toString(), "Высота видео*"))
+    list.add(SettingModel("video_width", videoWidth.toString(), "Ширина видео*"))
+    list.add(SettingModel("video_fps", videoFps.toString(), "Количество кадров в секунду*"))
+    list.add(SettingModel("cam_port", camPort, "Протокол подключения камеры"))
+    list.add(SettingModel("records_folder", recordsFolder, "Папка с записями*"))
+    list.add(SettingModel("saved_detection_folder", savedDetectionFolder, "Папка с сохранёнными распознаваниями*"))
     list.add(SettingModel("close_delay_ms", closeDelayMs.toString(), "Время, через которое закроется дверь после открытия"))
-    list.add(SettingModel("save_detection", saveDetection.toString(), "Сохранять ли изображение в базу при распознавании"))
-    list.add(SettingModel("use_arduino", useArduino.toString(), "Использовать ли arduino для управления дверью"))
-    list.add(SettingModel("forms_autoload", formsAutoload.toString(), "Авто подгружать ответы с гугл форм"))
-    list.add(SettingModel("forms_check_interval_ms", formsCheckIntervalMs.toString(), "Период проверки гугл форм"))
+    list.add(SettingModel("face_recognition_model", faceRecognitionModel.toString(), "Модель для распознавания лиц*"))
+    list.add(SettingModel("record_videos", recordVideos.toString(), "Записывать ли видео"))
+    list.add(SettingModel("save_detection", saveDetection.toString(), "Сохранять ли распознавания"))
     list.add(SettingModel("last_frames_amount", lastFramesAmount.toString(), "Сколько предыдущих кадров храниться"))
     list.add(SettingModel("min_frames_for_detection", minFramesForDetection.toString(), "Необходимое количество распознанных фреймов для подтверждения распознавания"))
     list.add(SettingModel("need_blinks", needBlinks.toString(), "Необходимое количество морганий для распознавания"))
     list.add(SettingModel("frames_for_eyes_check", framesForEyesCheck.toString(), "Количество фреймов на проверку морганий"))
     list.add(SettingModel("wait_frames_for_detection", waitFramesForDetection.toString(), "Через сколько фреймов будет подтверждено распознавание"))
-    list.add(SettingModel("cam_port", camPort, "Протокол подключения камеры"))
-    list.add(SettingModel("arduino_port", arduinoPort, "Протокол подключения ардуино"))
+    list.add(SettingModel("unknown_name", unknownName.toString(), "Как подписывать не распознанных"))
+    list.add(SettingModel("ktor_connect_url", ktorConnectUrl.toString(), "Url общения Python и Ktor"))
     list.add(SettingModel("max_faces", maxFaces.toString(), "Максимально количество захваченных лиц на кадре"))
     list.add(SettingModel("face_detection_mode", faceDetectionMode.toString(), "1 - проверяет среднюю разницу лиц(по всем сохранённым), 2 - проверяет процент распознанных сохранённых кадров"))
     list.add(SettingModel("max_avg_distance", maxAvgDistance.toString(), "Максимальная разница лиц для распознавания кадра"))
     list.add(SettingModel("max_percent_distance", maxPercentDistance.toString(), "Максимальная разница лиц для распознавания по средней разнице"))
     list.add(SettingModel("min_match_for_person", minMatchForPerson.toString(), "Минимальный процент для распознавания для распознавания по проценту распознанных сохранённых кадров"))
-    list.add(SettingModel("save_delay_ms", saveDelayMs.toString(), "Задержка сохранения кадра(для сохранения при распознавании)"))
     list.add(SettingModel("min_eyes_difference", minEyesDifference.toString(), "Минимальная разница значений глаз для детекта пре моргания"))
     list.add(SettingModel("min_dif_for_blink", minDifForBlink.toString(), "Минимальная часть фреймов с детектом преморгания для распознавания моргания"))
     list.add(SettingModel("blinked_eyes_open", blinkedEyesOpen.toString(), "Открывать ли дверь человеку с закрытыми глазами"))
@@ -109,29 +123,33 @@ fun SystemSettings.toModel(): List<SettingModel> {
 
 private val defaultSettings =
     SystemSettings(
-        closeDelayMs = 1000,
-        saveDetection = false,
-        useArduino = false,
-        formsAutoload = true,
-        formsCheckIntervalMs = 10_000,
-        lastFramesAmount = 25,
-        minFramesForDetection = 15,
-        needBlinks = 1,
-        framesForEyesCheck = 9,
-        waitFramesForDetection = 5,
+        videoHeight = 720,
+        videoWidth = 1280,
+        videoFps = 30,
         camPort = "/dev/video0",
-        arduinoPort = "/dev/ttyUSB0",
-        maxFaces = 12,
-        faceDetectionMode = 2,
-        maxAvgDistance = 0.54,
-        maxPercentDistance = 0.55,
-        minMatchForPerson = 0.34,
-        saveDelayMs = 5_000,
-        minEyesDifference = 0.15,
-        minDifForBlink = 0.3,
-        blinkedEyesOpen = false,
-        closeEyesThreshold = 0.2,
-        )
+        recordsFolder="/home/danil/testweb/records",
+        savedDetectionFolder="saved-detections",
+        closeDelayMs=3000,
+        faceRecognitionModel="large",
+        recordVideos=true,
+        saveDetection=true,
+        lastFramesAmount=25,
+        minFramesForDetection=15,
+        needBlinks=1,
+        framesForEyesCheck=9,
+        waitFramesForDetection=5,
+        unknownName="unknown",
+        ktorConnectUrl="http://0.0.0.0:80/api/py/status",
+        maxFaces=12,
+        faceDetectionMode=2,
+        maxAvgDistance=0.54,
+        maxPercentDistance=0.55,
+        minMatchForPerson=0.34,
+        minEyesDifference=0.15,
+        minDifForBlink=0.3,
+        blinkedEyesOpen=false,
+        closeEyesThreshold=0.2
+    )
 
 @Serializable
 data class SettingModel(

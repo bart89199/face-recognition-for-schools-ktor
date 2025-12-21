@@ -106,3 +106,12 @@ data class SystemStatus(
     val door: Boolean,
     val recognitions: List<String>
 )
+
+@Serializable
+data class ExSystemStatus(
+    val status: String,
+    val time: Long,
+    val door: Boolean,
+    val forceDoor: Boolean?,
+    val recognitions: List<String>
+)

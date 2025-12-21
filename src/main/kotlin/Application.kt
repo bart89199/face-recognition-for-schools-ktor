@@ -1,8 +1,6 @@
 package com.batr
 
 import com.batr.auth.configureAuth
-import com.batr.auth.user.RawUser
-import com.batr.auth.user.UserService
 import com.batr.database.Database.configureDatabase
 import com.batr.log.AdminLogService
 import com.batr.log.SystemLogService
@@ -12,9 +10,10 @@ import com.batr.pythonConnection.PythonConnection
 import com.batr.settings.SystemSettingsService
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import kotlinx.coroutines.runBlocking
+import io.ktor.server.plugins.cors.routing.*
 
 const val HOME_PATH = "/"
 const val LOGIN_PATH = "/login"
@@ -48,6 +47,15 @@ fun Application.module() {
             }
         }
 
+        install(CORS) {
+            allowMethod(HttpMethod.Options)
+            allowMethod(HttpMethod.Put)
+            allowMethod(HttpMethod.Delete)
+            allowMethod(HttpMethod.Patch)
+            allowHeader(HttpHeaders.Authorization)
+            allowHeader("MyCustomHeader")
+            anyHost() // @TODO: Don't do this in production if possible. Try to limit it.
+        }
 
 
 
