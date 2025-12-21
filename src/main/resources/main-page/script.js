@@ -162,6 +162,10 @@
         } else {
             statDoor.textContent = '—';
         }
+        // Update forceDoor status from WebSocket if present
+        if (data.hasOwnProperty('forceDoor')) {
+            forceDoorStatus = data.forceDoor;
+        }
         statRecognitions.innerHTML = '';
         if (Array.isArray(data.recognitions) && data.recognitions.length) {
             for (const name of data.recognitions.slice(-10)) {

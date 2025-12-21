@@ -31,6 +31,9 @@ object PythonConnection {
         forceDoor?.let {
             newStatus = newStatus.copy(door = it)
         }
+        
+        // Always include the current forceDoor value in the status
+        newStatus = newStatus.copy(forceDoor = forceDoor)
 
         if (systemStatus?.door == false && newStatus.door) {
             sysLog(SystemLogType.DOOR, "Door opened")
@@ -72,6 +75,10 @@ object PythonConnection {
                             session.log(AdminLogType.FORCE_DOOR, "changed ${forceDoor.toDoorStatus()} to ${newStatus.status.toDoorStatus()}")
                             sysLog(SystemLogType.DOOR, "door force changed  ${forceDoor.toDoorStatus()} to ${newStatus.status.toDoorStatus()}")
                             forceDoor = newStatus.status
+                            // Update the system status to reflect the new forceDoor value
+                            systemStatus?.let { currentStatus ->
+                                updateStatus(currentStatus)
+                            }
                             call.respond(HttpStatusCode.OK)
                         }
                     }
@@ -104,5 +111,6 @@ data class SystemStatus(
     val status: String,
     val time: Long,
     val door: Boolean,
-    val recognitions: List<String>
+    val recognitions: List<String>,
+    val forceDoor: Boolean? = null
 )
