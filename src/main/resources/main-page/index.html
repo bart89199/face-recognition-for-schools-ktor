@@ -510,9 +510,17 @@
 <!--                <video id="streamVideo" class="video-js vjs-default-skin vjs-big-play-centered" controls autoplay muted-->
 <!--                       playsinline></video>-->
 <!--            </div>-->
-            <div class="video-container">
-                <video id="streamVideo" autoplay playsinline muted></video>
-            </div>
+            <section class="card">
+                <h3>Видеопоток</h3>
+
+                <video id="streamVideo" autoplay playsinline muted
+                       style="width:100%; max-height:480px; background:#111;"></video>
+
+                <div style="display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap;">
+                    <button id="btnPause" type="button">Pause</button>
+                    <button id="btnPlay" type="button">Play</button>
+                </div>
+            </section>
             <section class="status-panel" aria-labelledby="statusTitle">
                 <h3 id="statusTitle" class="panel-title">Статус системы и управление дверью</h3>
                 <div class="door-controls">
