@@ -1,14 +1,11 @@
 package com.batr.database
 
-import io.ktor.server.application.Application
-import kotlinx.coroutines.Dispatchers
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.Transaction
-import org.jetbrains.exposed.sql.transactions.experimental.newSuspendedTransaction
+import io.ktor.server.application.*
+import org.jetbrains.exposed.v1.jdbc.Database
 
 object Database {
-    suspend fun <T> suspendTransaction(block: Transaction.() -> T): T =
-        newSuspendedTransaction(Dispatchers.IO, statement = block)
+//    suspend fun <T> suspendTransaction(block: Transaction.() -> T): T =
+//        org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction(statement = block)
 
     fun Application.configureDatabase() {
         Database.connect(

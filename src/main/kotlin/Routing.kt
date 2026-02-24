@@ -7,13 +7,12 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.http.content.*
 import io.ktor.server.plugins.*
-import io.ktor.server.plugins.defaultheaders.DefaultHeaders
-import io.ktor.server.plugins.partialcontent.PartialContent
+import io.ktor.server.plugins.defaultheaders.*
+import io.ktor.server.plugins.partialcontent.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import java.io.File
 
 fun Application.configureRouting() {
     install(StatusPages) {
@@ -28,6 +27,21 @@ fun Application.configureRouting() {
     }
 
     install(PartialContent)
+
+//    install(CallLogging) {
+//        level = Level.INFO // Set the desired log level
+//        format { call -> // Customize the log message format
+//                val status = call.response.status()
+//                val httpMethod = call.request.httpMethod.value
+//                val userAgent = call.request.headers["User-Agent"]
+//                "Status: $status, HTTP method: $httpMethod, User agent: $userAgent, Request path: ${call.request.path()}"
+//
+//        }
+//        // Optional: filter requests (e.g., only log requests starting with /api/v1)
+//        // filter { call ->
+//        //     call.request.path().startsWith("/api/v1")
+//        // }
+//    }
 
     routing {
         authenticate("session-auth") {
@@ -72,11 +86,11 @@ suspend inline fun <reified T : Any> ApplicationCall.receiveOrRespond(
     message: String = "incorrect json"
 ): T? = try {
     receive<T>()
-} catch (_: BadRequestException) {
-    respond(respondStatus, message)
+} catch (e: BadRequestException) {
+    respond(respondStatus, e.message ?: message)
     null
-} catch (_: CannotTransformContentToTypeException) {
-    respond(respondStatus, message)
+} catch (e: CannotTransformContentToTypeException) {
+    respond(respondStatus, e.message ?: message)
     null
 }
 

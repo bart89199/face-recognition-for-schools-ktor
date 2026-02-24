@@ -3,20 +3,26 @@ package com.batr.auth.session
 import com.batr.auth.TokenGenerator
 import com.batr.auth.user.User
 import com.batr.auth.user.UserService
-import com.batr.database.Database.suspendTransaction
 import com.batr.log.AdminLogType
 import com.batr.log.log
 import io.ktor.server.application.*
 import io.ktor.server.config.*
 import io.ktor.server.plugins.origin
 import io.ktor.server.routing.RoutingCall
-import io.ktor.server.routing.RoutingContext
 import io.ktor.server.sessions.clear
 import io.ktor.server.sessions.sessions
-import org.jetbrains.exposed.sql.*
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.Query
+import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.update
+
 import kotlin.properties.Delegates
 
 object SessionService {
