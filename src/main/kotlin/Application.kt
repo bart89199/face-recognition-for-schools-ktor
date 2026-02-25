@@ -29,13 +29,14 @@ val applicationHttpClient = HttpClient(CIO) {
 
 fun Application.module() {
     try {
+        try {
+            SystemSettingsService.load(this)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+        configureDatabase()
         monitor.subscribe(ApplicationStarted) {
             SystemLogService.logB(SystemLogType.SYSTEM_START, "System started")
-            try {
-                SystemSettingsService.load(this)
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
         }
 
         monitor.subscribe(ApplicationStopped) {
@@ -60,9 +61,8 @@ fun Application.module() {
 
 
         loadLogConst()
-        Records.load(this)
 
-        configureDatabase()
+
         configureAuth()
         SystemLogService.load()
         AdminLogService.load()
@@ -77,6 +77,7 @@ fun Application.module() {
         SystemLogService.configureRouting(this)
         AdminLogService.configureRouting(this)
         Records.configureRouting(this)
+        Records.load()
 
         configureStreaming()
         configureInfo()

@@ -4,7 +4,7 @@ ktor:
     modules:
       - com.batr.ApplicationKt.module
   deployment:
-    port: 80
+    port: 8080
 postgres:
   url: "jdbc:postgresql://localhost:5432/face-recognition"
   user: postgres
@@ -21,9 +21,5 @@ log:
 settings:
   path: "/home/danil/testweb"
   file: "settings.json"
-stream:
-  path: "/home/danil/testweb/hls"
-records:
-  path: "/home/danil/testweb/records"
 python:
   bearer-token: $PY_TOKEN
