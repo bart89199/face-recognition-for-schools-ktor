@@ -17,6 +17,7 @@ import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.forwardedheaders.ForwardedHeaders
 import io.ktor.server.plugins.forwardedheaders.XForwardedHeaders
 import io.ktor.server.plugins.hsts.HSTS
+import java.io.File
 
 const val HOME_PATH = "/"
 const val LOGIN_PATH = "/login"
