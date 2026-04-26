@@ -10,15 +10,13 @@ import com.batr.pythonConnection.PythonConnection
 import com.batr.settings.SystemSettingsService
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpMethod
+import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
-import io.ktor.server.plugins.cors.routing.CORS
+import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.plugins.forwardedheaders.ForwardedHeaders
 import io.ktor.server.plugins.forwardedheaders.XForwardedHeaders
 import io.ktor.server.plugins.hsts.HSTS
-import java.io.File
 
 const val HOME_PATH = "/"
 const val LOGIN_PATH = "/login"
@@ -42,13 +40,14 @@ fun Application.module() {
             maxAgeInSeconds = 31536000 // 1 год
             includeSubDomains = true
         }
+        try {
+            SystemSettingsService.load(this)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+        configureDatabase()
         monitor.subscribe(ApplicationStarted) {
             SystemLogService.logB(SystemLogType.SYSTEM_START, "System started")
-            try {
-                SystemSettingsService.load(this)
-            } catch (e: Throwable) {
-                e.printStackTrace()
-            }
         }
 
         monitor.subscribe(ApplicationStopped) {
@@ -74,9 +73,8 @@ fun Application.module() {
 
 
         loadLogConst()
-        Records.load(this)
 
-        configureDatabase()
+
         configureAuth()
         SystemLogService.load()
         AdminLogService.load()
@@ -91,6 +89,7 @@ fun Application.module() {
         SystemLogService.configureRouting(this)
         AdminLogService.configureRouting(this)
         Records.configureRouting(this)
+        Records.load()
 
         configureStreaming()
         configureInfo()

@@ -29,7 +29,7 @@ object UserService {
                 it[UserTable.root] = rawUser.root
                 it[permissions] = rawUser.permissions
             }[UserTable.id].value
-        } catch (e: ExposedSQLException) {
+        } catch (_: ExposedSQLException) {
             -1
         }
     }

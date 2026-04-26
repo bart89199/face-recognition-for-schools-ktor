@@ -5,6 +5,8 @@ import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
 import com.batr.log.AdminLogType
 import com.batr.log.log
+import com.batr.settings.SystemSettings
+import com.batr.settings.SystemSettingsService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -22,23 +24,34 @@ import kotlin.properties.Delegates
 object Records {
     private var recordsFolder: File by Delegates.notNull()
 
-    fun load(app: Application) {
-        recordsFolder = File(app.environment.config.property("records.path").getString())
+    private var lastUpdate: Long = 0
+
+    fun load() {
+        recordsFolder = File(SystemSettingsService.systemSettings.recordsFolder)
         recordsFolder.mkdirs()
+        lastUpdate = System.currentTimeMillis()
     }
 
-    fun getRecordsList(): List<RecordModel> = recordsFolder.list().filter { it.contains(".") }.mapNotNull {
-        try {
-            val attributes = Files.readAttributes(Path(recordsFolder.path, it), BasicFileAttributes::class.java)
-            RecordModel(it, attributes.creationTime().toMillis(), attributes.lastModifiedTime().toMillis())
-        } catch (_: UnsupportedOperationException) {
-            null
-        } catch (_: IOException) {
-            null
+    fun update() {
+        if (System.currentTimeMillis() - lastUpdate > 10_000) load()
+    }
+
+    fun getRecordsList(): List<RecordModel> {
+        update()
+        return recordsFolder.list().filter { it.contains(".") }.mapNotNull {
+            try {
+                val attributes = Files.readAttributes(Path(recordsFolder.path, it), BasicFileAttributes::class.java)
+                RecordModel(it, attributes.creationTime().toMillis(), attributes.lastModifiedTime().toMillis())
+            } catch (_: UnsupportedOperationException) {
+                null
+            } catch (_: IOException) {
+                null
+            }
         }
     }
 
     fun getRecord(filename: String): File? {
+        update()
         if (filename.contains("..") || filename.contains(File.separator)) return null
         val file = recordsFolder.resolve(filename)
         if (!file.exists() || !file.isFile) return null
