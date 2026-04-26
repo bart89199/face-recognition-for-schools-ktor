@@ -10,6 +10,8 @@ import com.batr.auth.session.getRequestData
 import com.batr.auth.user.RawUser
 import com.batr.auth.user.UserPermissions
 import com.batr.auth.user.UserService
+import com.batr.getEnvOrEnvFile
+import com.batr.getEnvOrEnvFileOrDef
 import com.batr.log.AdminLogType
 import com.batr.log.log
 import io.ktor.client.*
@@ -29,17 +31,15 @@ private val oauthLoginParams = ConcurrentHashMap<String, LoginParams>()
 fun AuthenticationConfig.configureGoogleOauthPlugin(application: Application) {
 
     oauth("oauth-google") {
-        urlProvider = { "http://face-recognition.online/callback" }
+        urlProvider = { getEnvOrEnvFileOrDef("GOOGLE_AUTH_CALLBACK", "http://face-recognition.online/callback") }
         providerLookup = {
             OAuthServerSettings.OAuth2ServerSettings(
                 name = "google",
                 authorizeUrl = "https://accounts.google.com/o/oauth2/v2/auth",
                 accessTokenUrl = "https://oauth2.googleapis.com/token",
                 requestMethod = HttpMethod.Post,
-                clientId = application.environment.config.property("googleapi.auth.google-client-id")
-                    .getString(),
-                clientSecret = application.environment.config.property("googleapi.auth.google-client-secret")
-                    .getString(),
+                clientId = getEnvOrEnvFile("GOOGLE_CLIENT_ID"),
+                clientSecret = getEnvOrEnvFile("GOOGLE_CLIENT_SECRET"),
                 defaultScopes = listOf("openid", "email", "profile"),
                 extraAuthParameters = listOf("access_type" to "offline"),
                 onStateCreated = { call, state ->
@@ -49,6 +49,7 @@ fun AuthenticationConfig.configureGoogleOauthPlugin(application: Application) {
                 }
             )
         }
+
         client = applicationHttpClient
     }
 }
@@ -59,6 +60,7 @@ fun Application.configureGoogleOauthRooting() {
             get("login/google") {
                 // Redirects to 'authorizeUrl' automatically
             }
+
             get("callback") {
                 val currentPrincipal: OAuthAccessTokenResponse.OAuth2? = call.principal()
                 currentPrincipal?.let { principal ->
@@ -67,11 +69,11 @@ fun Application.configureGoogleOauthRooting() {
                         val userInfo = fetchUserInfo(principal.accessToken)
                         var user = UserService.getByEmail(userInfo.email)
                         if (user == null) {
-                            val id = UserService.createUser(RawUser(userInfo.name, userInfo.email, "password", permissions = UserPermissions(true, false, true, true, true, true)))
-                            user = UserService.getById(id)!!
+//                        val id = UserService.createUser(RawUser(userInfo.name, userInfo.email, "password", permissions = UserPermissions(true, false, true, true, true, true)))
+//                        user = UserService.getById(id)!!
 
-                        //                            call.response.status(HttpStatusCode.Forbidden)
-//                            return@get
+                            call.response.status(HttpStatusCode.Forbidden)
+                            return@get
                         }
 
                         val googleAccess = GoogleAccess(
@@ -100,7 +102,6 @@ fun Application.configureGoogleOauthRooting() {
                 }
                 call.respondRedirect(HOME_PATH)
             }
-
         }
     }
 }

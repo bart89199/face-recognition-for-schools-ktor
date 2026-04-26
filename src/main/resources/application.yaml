@@ -4,26 +4,28 @@ ktor:
     modules:
       - com.batr.ApplicationKt.module
   deployment:
-    port: 80
+    port: 8080
 postgres:
-  url: "jdbc:postgresql://localhost:5432/face-recognition"
-  user: postgres
-  password: $DB_PASSWORD
-googleapi:
-  auth:
-    google-client-secret: $GOOGLE_CLIENT_SECRET
-    google-client-id: $GOOGLE_CLIENT_ID
+#  url: "jdbc:postgresql://db:5432/"
+#  database: $POSTGRES_DB
+#  user: "postgres"
+#  password: "password"
+#googleapi:
+#  auth:
+#    google-client-secret: $GOOGLE_CLIENT_SECRET
+#    google-client-id: $GOOGLE_CLIENT_ID
 auth:
   token-life-time-ms: 3600000
   long-token-life-time-ms: 604800000
 log:
   currentLogAmount: 200
 settings:
-  path: "/home/danil/testweb"
+  path: "/var/lib/face-recognition/testweb"
   file: "settings.json"
 stream:
-  path: "/home/danil/testweb/hls"
+  path: "/var/lib/face-recognition/testweb/hls"
 records:
-  path: "/home/danil/testweb/records"
-python:
-  bearer-token: $PY_TOKEN
+  path: "/var/lib/face-recognition/testweb/records"
+is-using-reversed-proxy: $IS_USING_REVERSED_PROXY
+#python:
+#  bearer-token: $PY_TOKEN

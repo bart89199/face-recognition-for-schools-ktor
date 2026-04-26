@@ -1,3 +1,5 @@
+import io.ktor.plugin.features.DockerImageRegistry
+
 val exposed_version: String by project
 val kotlin_version: String by project
 val logback_version: String by project
@@ -11,7 +13,7 @@ plugins {
 }
 
 group = "com.batr"
-version = "0.0.1"
+version = "1.1.22"
 
 application {
     mainClass = "io.ktor.server.netty.EngineMain"
@@ -31,7 +33,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:$exposed_version")
     implementation("org.jetbrains.exposed:exposed-json:$exposed_version")
     implementation("org.jetbrains.exposed:exposed-dao:$exposed_version")
-    
+
     implementation("io.ktor:ktor-server-partial-content:${ktor_version}")
 
     implementation("com.password4j:password4j:1.8.4")
@@ -45,7 +47,10 @@ dependencies {
     implementation("io.ktor:ktor-server-config-yaml")
     implementation("io.ktor:ktor-server-auth:${ktor_version}")
     implementation("io.ktor:ktor-server-sessions:${ktor_version}")
-    implementation("io.ktor:ktor-server-default-headers:3.2.3")
+    implementation("io.ktor:ktor-server-default-headers:${ktor_version}")
+    implementation("io.ktor:ktor-server-forwarded-header:${ktor_version}")
+    implementation("io.ktor:ktor-server-hsts:${ktor_version}")
+
     testImplementation("io.ktor:ktor-server-test-host")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 
@@ -58,4 +63,27 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:${ktor_version}")
 
 //    implementation("io.ktor:ktor-server-call-logging:${ktor_version}")
+}
+//jib.to.image = "face-recognition-ktor"
+ktor {
+    docker {
+        jreVersion.set(JavaVersion.VERSION_17)
+        localImageName.set("face-recognition-ktor")
+        imageTag.set(version.toString())
+        portMappings.set(listOf(
+            io.ktor.plugin.features.DockerPortMapping(
+                8080,
+                8080,
+                io.ktor.plugin.features.DockerPortMappingProtocol.TCP
+            )
+        ))
+
+        externalRegistry.set(
+            DockerImageRegistry.dockerHub(
+                appName = provider { "face-recognition-ktor" },
+                username = providers.environmentVariable("DOCKER_HUB_USERNAME"),
+                password = providers.environmentVariable("DOCKER_HUB_PASSWORD")
+            )
+        )
+    }
 }

@@ -87,7 +87,7 @@
 
         setLoading(true);
         try {
-            const res = await fetch('/api/login/local', {
+            const res = await fetch('/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

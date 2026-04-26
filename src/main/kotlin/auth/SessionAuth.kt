@@ -40,7 +40,7 @@ fun AuthenticationConfig.configureSessionAuthPlugin() {
 fun SessionsConfig.configureSessionsPlugin() {
     cookie<CookieUserSession>("user_session") {
         cookie.httpOnly = true
-        // cookie.secure = true  // Включить в проде (HTTPS)
+//        cookie.secure = true
         cookie.path = "/"
     }
 }

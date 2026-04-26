@@ -1,5 +1,8 @@
 package com.batr.database
 
+import com.batr.getEnvOrEnvFile
+import com.batr.getEnvOrEnvFileOrDef
+import com.batr.getEnvOrEnvFileOrNull
 import io.ktor.server.application.*
 import org.jetbrains.exposed.v1.jdbc.Database
 
@@ -9,9 +12,9 @@ object Database {
 
     fun Application.configureDatabase() {
         Database.connect(
-            environment.config.property("postgres.url").getString(),
-            user = environment.config.property("postgres.user").getString(),
-            password = environment.config.property("postgres.password").getString()
+            "jdbc:postgresql://" + getEnvOrEnvFileOrDef("DB_URL", "localhost:5432") + "/" + getEnvOrEnvFileOrDef("POSTGRES_DB", "face-recognition"),
+            user = getEnvOrEnvFileOrDef("DB_USER", "postgres"),
+            password = getEnvOrEnvFileOrDef("DB_PASSWORD", "password")
         )
 
     }

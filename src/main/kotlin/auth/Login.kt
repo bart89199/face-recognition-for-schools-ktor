@@ -4,7 +4,6 @@ import com.batr.HOME_PATH
 import com.batr.auth.session.CookieUserSession
 import com.batr.auth.session.SessionService.logout
 import com.batr.auth.session.check
-import com.batr.auth.session.delete
 import com.batr.auth.user.UserService
 import com.batr.auth.user.newSession
 import com.batr.log.AdminLogType
@@ -13,7 +12,9 @@ import com.batr.receiveOrRespond
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.http.content.*
-import io.ktor.server.request.*
+import io.ktor.server.request.receive
+import io.ktor.server.request.receiveParameters
+import io.ktor.server.request.receiveText
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.sessions.*
@@ -23,14 +24,17 @@ import kotlinx.serialization.Serializable
 fun Application.configureLoginRouting() {
     routing {
         alreadyLogin {
-            staticResources("/login", "login")
+            staticResources("/login", "login-old")
+            staticResources("/login-old", "login-old")
+            staticResources("/login-new", "login")
         }
         get("/logout") {
             val session = call.getSession(false) ?: return@get
             session.logout(call)
             call.respondRedirect(HOME_PATH)
         }
-        post("/api/login/local") {
+        post("/login") {
+//            println("login")
             val input = call.receiveOrRespond<LoginData>() ?: return@post
             val email = input.email
             val password = input.password
@@ -72,4 +76,9 @@ private data class LoginData(
     val email: String,
     val password: String,
     @SerialName("long_login") val longLogin: Boolean = false
+)
+@Serializable
+private data class TestData(
+    val email: String,
+    val password: String,
 )

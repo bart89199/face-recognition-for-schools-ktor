@@ -1,5 +1,6 @@
 package com.batr
 
+import com.batr.auth.getSession
 import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
 import io.ktor.http.*
@@ -18,6 +19,7 @@ fun Application.configureRouting() {
     install(StatusPages) {
         exception<Throwable> { call, cause ->
             cause.printStackTrace()
+            println(cause.message)
             call.respondText(text = "500: $cause", status = HttpStatusCode.InternalServerError)
         }
     }
@@ -44,13 +46,21 @@ fun Application.configureRouting() {
 //    }
 
     routing {
-        authenticate("session-auth") {
-            get {
+        get {
+            val session = call.getSession(false)
+            if (session?.active != true) {
                 call.respondBytes(
-                    call.application.environment.classLoader.getResource("main-page/index.html")!!.readBytes(),
+                    call.application.environment.classLoader.getResource("login-old/index.html")!!.readBytes(),
                     ContentType.Text.Html
                 )
+                return@get
             }
+            call.respondBytes(
+                call.application.environment.classLoader.getResource("main-page/index.html")!!.readBytes(),
+                ContentType.Text.Html
+            )
+        }
+        authenticate("session-auth") {
 
             staticResources("/main-page", "main-page")
 
