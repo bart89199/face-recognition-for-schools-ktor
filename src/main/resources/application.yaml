@@ -27,5 +27,6 @@ stream:
 records:
   path: "/var/lib/face-recognition/testweb/records"
 is-using-reversed-proxy: $IS_USING_REVERSED_PROXY
+pn-adr: $PN_ADR
 #python:
 #  bearer-token: $PY_TOKEN

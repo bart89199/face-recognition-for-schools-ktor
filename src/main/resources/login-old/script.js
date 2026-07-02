@@ -24,7 +24,6 @@
     const form = document.getElementById('loginForm');
     const errorBox = document.getElementById('error');
     const submitBtn = document.getElementById('submitBtn');
-    const googleBtn = document.getElementById('googleBtn');
     const longLoginCheckbox = document.getElementById('longLogin');
 
     function showError(msg) {
@@ -53,24 +52,6 @@
             textSpan.style.visibility = 'visible';
         }
     }
-
-    // Добавляем longLogin=true если выбран чекбокс
-    function buildGoogleUrl() {
-        const g = new URL('/login/google', window.location.origin);
-        if (safeRedirectParam) {
-            g.searchParams.set('redirectUrl', safeRedirectParam);
-        }
-        if (longLoginCheckbox.checked) {
-            g.searchParams.set('longLogin', 'true');
-        }
-        return g.pathname + g.search;
-    }
-
-    function goGoogle() {
-        window.location = buildGoogleUrl();
-    }
-
-    googleBtn.addEventListener('click', goGoogle);
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();

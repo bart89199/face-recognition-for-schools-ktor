@@ -3,6 +3,9 @@ package com.batr
 import com.batr.auth.getSession
 import com.batr.auth.setPermissions
 import com.batr.auth.user.UserPermissions
+import io.ktor.client.request.request
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -62,6 +65,45 @@ fun Application.configureRouting() {
         }
         authenticate("session-auth") {
 
+            route("/pan/{...}") {
+                handle {
+
+                    val targetUri = "http://${environment.config.property("pn-adr").getString()}${call.request.uri}"
+
+                    val proxyResponse = applicationHttpClient.request(targetUri) {
+                        method = call.request.httpMethod
+
+                        setBody(call.receiveChannel())
+
+                        headers {
+                            call.request.headers.forEach { key, values ->
+                                if (!key.equals(HttpHeaders.Host, true) &&
+                                    !key.equals(HttpHeaders.ContentLength, true) &&
+                                    !key.equals(HttpHeaders.TransferEncoding, true)
+                                ) {
+                                    appendAll(key, values)
+                                }
+                            }
+                        }
+                    }
+
+                    proxyResponse.headers.forEach { key, values ->
+                        if (!key.equals(HttpHeaders.ContentType, true) &&
+                            !key.equals(HttpHeaders.ContentLength, true) &&
+                            !key.equals(HttpHeaders.TransferEncoding, true)
+                        ) {
+                            values.forEach { value -> call.response.header(key, value) }
+                        }
+                    }
+
+                    val targetContentType = proxyResponse.contentType()
+                    if (targetContentType != null) {
+                        call.response.header(HttpHeaders.ContentType, targetContentType.toString())
+                    }
+
+                    call.respond(proxyResponse.status, proxyResponse.bodyAsChannel())
+                }
+            }
             staticResources("/main-page", "main-page")
 
             setPermissions(UserPermissions(admin = true)) {
@@ -113,3 +155,4 @@ suspend fun RoutingContext.fetchQueryInts(queryParameter: String): List<Int>? = 
 
 fun RoutingContext.fetchQueryStrings(queryParameter: String): List<String> =
     call.request.queryParameters[queryParameter]?.split(",") ?: emptyList()
+

@@ -13,7 +13,7 @@ plugins {
 }
 
 group = "com.batr"
-version = "1.1.22"
+version = "1.1.28"
 
 application {
     mainClass = "io.ktor.server.netty.EngineMain"

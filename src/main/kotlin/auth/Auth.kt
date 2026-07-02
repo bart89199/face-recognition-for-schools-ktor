@@ -19,11 +19,11 @@ fun Application.configureAuth() {
         configureSessionsPlugin()
     }
     install(Authentication) {
-        configureGoogleOauthPlugin(this@configureAuth)
+//        configureGoogleOauthPlugin(this@configureAuth)
         configureSessionAuthPlugin()
         configureBeaterAuthPlugin(this@configureAuth)
     }
-    configureGoogleOauthRooting()
+//    configureGoogleOauthRooting()
 
     configureUserManagement()
     configureSessionManagement()
